@@ -841,9 +841,9 @@ Ganglion.prototype._processBytes = function (data) {
   let byteId = parseInt(data[0]);
   if (byteId <= k.OBCIGanglionByteIdSampleMax) {
     if (byteId === k.OBCIGanglionByteIdRawData) {
-      this._processUncompressedData(data);
+      // this._processUncompressedData(data);
     } else {
-      this._processCompressedData(data);
+      // this._processCompressedData(data);
     }
   } else {
     switch (byteId) {
@@ -896,7 +896,7 @@ Ganglion.prototype._processCompressedData = function (data) {
     // _sendCharacteristic.write(reset);
     this._droppedPacketCounter++;
     this.emit(k.OBCIEmitterDroppedPacket, [parseInt(data[0]) - 1]);
-    if (this.options.verbose) console.error('\t>>>PACKET DROP<<<  ' + this._packetCounter + '  ' + this.lastDroppedPacket + ' ' + this._droppedPacketCounter);
+    // if (this.options.verbose) console.error('\t>>>PACKET DROP<<<  ' + this._packetCounter + '  ' + this.lastDroppedPacket + ' ' + this._droppedPacketCounter);
   }
 
   let buffer = data.slice(k.OBCIGanglionPacket.dataStart, k.OBCIGanglionPacket.dataStop);
