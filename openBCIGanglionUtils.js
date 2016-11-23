@@ -26,6 +26,30 @@ module.exports = {
     return (prefix << 19) | (threeByteBuffer[0] << 16) | (threeByteBuffer[1] << 8) | threeByteBuffer[2];
   },
   /**
+   * @description Takes a buffer filled with 3 16 bit integers from an OpenBCI device and converts based on settings
+   *                  of the MPU, values are in ?
+   * @param dataBuf {Buffer} - Buffer that is 6 bytes long
+   * @param sendCounts {Boolean} - Multiply by scale factor.
+   * @returns {Array} - Array of floats 3 elements long
+   * @author AJ Keller (@pushtheworldllc)
+   */
+  getDataArrayAccel: (dataBuf, sendCounts) => {
+    const ACCEL_NUMBER_AXIS = 3;
+    // Scale factor for aux data
+    const SCALE_FACTOR_ACCEL = 0.008 / Math.pow(2, 6);
+    // Must assume +/-4g, normal mode (opposed to low power mode), 12 bits left justfied.
+    let accelData = [];
+    for (let i = 0; i < ACCEL_NUMBER_AXIS; i++) {
+      let index = i * 2;
+      if (sendCounts) {
+        accelData.push(interpret16bitAsInt32(dataBuf.slice(index, index + 2)));
+      } else {
+        accelData.push(interpret16bitAsInt32(dataBuf.slice(index, index + 2)) * SCALE_FACTOR_ACCEL);
+      }
+    }
+    return accelData;
+  },
+  /**
    * @description Very safely checks to see if the noble peripheral is a
    *  ganglion by way of checking the local name property.
    */
@@ -44,7 +68,7 @@ module.exports = {
     return false;
   },
   sampleAccel: () => {
-    return new Buffer([k.OBCIGanglionByteIdAccel, 0, 0, 1, 0, 0, 2, 0, 0, 3]);
+    return new Buffer([k.OBCIGanglionByteIdAccel, 0, 0, 0, 1, 0, 2]);
   },
   sampleCompressedData: (sampleNumber) => {
     return new Buffer(
@@ -159,4 +183,15 @@ function getPeripheralWithLocalName (pArray, localName) {
     });
     return reject(`No peripheral found with localName: ${localName}`);
   });
+}
+
+function interpret16bitAsInt32 (twoByteBuffer) {
+  var prefix = 0;
+
+  if (twoByteBuffer[0] > 127) {
+    // console.log('\t\tNegative number')
+    prefix = 65535; // 0xFFFF
+  }
+
+  return (prefix << 16) | (twoByteBuffer[0] << 8) | twoByteBuffer[1];
 }

@@ -10,6 +10,7 @@ const openBCIUtils = require('./openBCIUtils');
 const clone = require('clone');
 
 const _options = {
+  debug: false,
   nobleAutoStart: true,
   nobleScanOnPowerOn: true,
   sendCounts: false,
@@ -20,10 +21,48 @@ const _options = {
   simulatorInjectAlpha: true,
   simulatorInjectLineNoise: [k.OBCISimulatorLineNoiseHz60, k.OBCISimulatorLineNoiseHz50, k.OBCISimulatorLineNoiseNone],
   simulatorSampleRate: 200,
-  verbose: false,
-  debug: false
+  verbose: false
 };
 
+/**
+ * @description The initialization method to call first, before any other method.
+ * @param options (optional) - Board optional configurations.
+ *     - `debug` {Boolean} - Print out a raw dump of bytes sent and received. (Default `false`)
+ *
+ *     - `nobleAutoStart` {Boolean} - Automatically initialize `noble`. Subscribes to blue tooth state changes and such.
+ *           (Default `true`)
+ *
+ *     - `nobleScanOnPowerOn` {Boolean} - Start scanning for Ganglion BLE devices as soon as power turns on.
+ *           (Default `true`)
+ *
+ *     - `sendCounts` {Boolean} - Send integer raw counts instead of scaled floats.
+ *           (Default `false`)
+ *
+ *     - `simulate` {Boolean} - (IN-OP) Full functionality, just mock data. Must attach Daisy module by setting
+ *                  `simulatorDaisyModuleAttached` to `true` in order to get 16 channels. (Default `false`)
+ *
+ *     - `simulatorBoardFailure` {Boolean} - (IN-OP)  Simulates board communications failure. This occurs when the RFduino on
+ *                  the board is not polling the RFduino on the dongle. (Default `false`)
+ *
+ *     - `simulatorHasAccelerometer` - {Boolean} - Sets simulator to send packets with accelerometer data. (Default `true`)
+ *
+ *     - `simulatorInjectAlpha` - {Boolean} - Inject a 10Hz alpha wave in Channels 1 and 2 (Default `true`)
+ *
+ *     - `simulatorInjectLineNoise` {String} - Injects line noise on channels.
+ *          3 Possible Options:
+ *              `60Hz` - 60Hz line noise (Default) [America]
+ *              `50Hz` - 50Hz line noise [Europe]
+ *              `none` - Do not inject line noise.
+ *
+ *     - `simulatorSampleRate` {Number} - The sample rate to use for the simulator. Simulator will set to 125 if
+ *                  `simulatorDaisyModuleAttached` is set `true`. However, setting this option overrides that
+ *                  setting and this sample rate will be used. (Default is `250`)
+ *
+ *     - `verbose` {Boolean} - Print out useful debugging events. (Default `false`)
+ *
+ * @constructor
+ * @author AJ Keller (@pushtheworldllc)
+ */
 function Ganglion (options) {
   if (!(this instanceof Ganglion)) {
     return new Ganglion(options);
@@ -95,10 +134,48 @@ function Ganglion (options) {
 util.inherits(Ganglion, EventEmitter);
 
 /**
+ * Used to start a scan if power is on. Useful if a connection is dropped.
+ */
+Ganglion.prototype.autoReconnect = function () {
+  // TODO: send back reconnect status, or reconnect fail
+  if (noble.state === k.OBCINobleStatePoweredOn) {
+    this._nobleScanStart();
+  } else {
+    console.warn('BLE not AVAILABLE');
+  }
+};
+
+/**
+ * @description Send a command to the board to turn a specified channel off
+ * @param channelNumber
+ * @returns {Promise.<T>}
+ * @author AJ Keller (@pushtheworldllc)
+ */
+Ganglion.prototype.channelOff = function (channelNumber) {
+  return k.commandChannelOff(channelNumber).then((charCommand) => {
+    // console.log('sent command to turn channel ' + channelNumber + ' by sending command ' + charCommand)
+    return this.write(charCommand);
+  });
+};
+
+/**
+ * @description Send a command to the board to turn a specified channel on
+ * @param channelNumber
+ * @returns {Promise.<T>|*}
+ * @author AJ Keller (@pushtheworldllc)
+ */
+Ganglion.prototype.channelOn = function (channelNumber) {
+  return k.commandChannelOn(channelNumber).then((charCommand) => {
+    // console.log('sent command to turn channel ' + channelNumber + ' by sending command ' + charCommand)
+    return this.write(charCommand);
+  });
+};
+
+/**
  * @description The essential precursor method to be called initially to establish a
  *              ble connection to the OpenBCI ganglion board.
  * @param id {String | Object} - a string local name or peripheral object
- * @returns {Promise} if the board was able to connect.
+ * @returns {Promise} If the board was able to connect.
  * @author AJ Keller (@pushtheworldllc)
  */
 Ganglion.prototype.connect = function (id) {
@@ -121,36 +198,17 @@ Ganglion.prototype.connect = function (id) {
 };
 
 /**
- * @description Called once when for any reason the ble connection is no longer open.
- * @private
+ * Destroys the multi packet buffer.
  */
-Ganglion.prototype._disconnected = function () {
-  this._streaming = false;
-
-  // Clean up _noble
-  // TODO: Figure out how to fire function on process ending from inside module
-  // noble.removeListener('discover', this._nobleOnDeviceDiscoveredCallback);
-
-  if (this._peripheral) {
-    this._peripheral.removeAllListeners('servicesDiscover');
-    this._peripheral.removeAllListeners('connect');
-    this._peripheral.removeAllListeners('disconnect');
-  }
-
-  // _peripheral = null;
-  if (this.options.verbose) console.log('Disconnected');
-  if (!this.manualDisconnect) {
-    this.autoReconnect();
-  }
-
-  this.emit('close');
+Ganglion.prototype.destroyMultiPacketBuffer = function () {
+  this._multiPacketBuffer = null;
 };
 
 /**
- * @description Closes the serial port. Waits for stop streaming command to
+ * @description Closes the connection to the board. Waits for stop streaming command to
  *  be sent if currently streaming.
  * @param stopStreaming {Boolean} (optional) - True if you want to stop streaming before disconnecting.
- * @returns {Promise} - fulfilled by a successful close of the serial port object, rejected otherwise.
+ * @returns {Promise} - fulfilled by a successful close, rejected otherwise.
  * @author AJ Keller (@pushtheworldllc)
  */
 Ganglion.prototype.disconnect = function (stopStreaming) {
@@ -185,11 +243,63 @@ Ganglion.prototype.disconnect = function (stopStreaming) {
 };
 
 /**
+ * Return the local name of the attached Ganglion device.
+ * @return {null|String}
+ */
+Ganglion.prototype.getLocalName = function () {
+  return this._localName;
+};
+
+/**
+ * Get's the multi packet buffer.
+ * @return {null|Buffer} - Can be null if no multi packets received.
+ */
+Ganglion.prototype.getMutliPacketBuffer = function () {
+  return this._multiPacketBuffer;
+};
+
+/**
+ * Call to start testing impedance.
+ * @return {global.Promise|Promise}
+ */
+Ganglion.prototype.impedanceStart = function () {
+  return new Promise((resolve, reject) => {
+    this.write(k.OBCIGanglionImpedanceStart)
+      .then(() => {
+        resolve();
+      })
+      .catch(reject);
+  });
+};
+
+/**
+ * Call to stop testing impedance.
+ * @return {global.Promise|Promise}
+ */
+Ganglion.prototype.impedanceStop = function () {
+  return new Promise((resolve, reject) => {
+    this.write(k.OBCIGanglionImpedanceStop)
+      .then(() => {
+        resolve();
+      })
+      .catch(reject);
+  });
+};
+
+/**
  * @description Checks if the driver is connected to a board.
  * @returns {boolean} - True if connected.
  */
 Ganglion.prototype.isConnected = function () {
   return this._connected;
+};
+
+/**
+ * @description Checks if noble is currently scanning.
+ * @returns {boolean} - True if streaming.
+ */
+Ganglion.prototype.isSearching = function () {
+  return this._scanning;
 };
 
 /**
@@ -201,15 +311,81 @@ Ganglion.prototype.isStreaming = function () {
 };
 
 /**
- * @description Checks if noble is currently scanning.
- * @returns {boolean} - True if streaming.
+ * @description This function is used as a convenience method to determine how many
+ *              channels the current board is using.
+ * @returns {Number} A number
+ * Note: This is dependent on if you configured the board correctly on setup options
+ * @author AJ Keller (@pushtheworldllc)
  */
-Ganglion.prototype.isSearching = function () {
-  return this._scanning;
+Ganglion.prototype.numberOfChannels = function () {
+  return k.OBCINumberOfChannelsGanglion;
 };
 
-Ganglion.prototype.getLocalName = function () {
-  return this._localName;
+/**
+ * @description To print out the register settings to the console
+ * @returns {Promise.<T>|*}
+ * @author AJ Keller (@pushtheworldllc)
+ */
+Ganglion.prototype.printRegisterSettings = function () {
+  return this.write(k.OBCIMiscQueryRegisterSettings);
+};
+
+/**
+ * @description Get the the current sample rate is.
+ * @returns {Number} The sample rate
+ * Note: This is dependent on if you configured the board correctly on setup options
+ */
+Ganglion.prototype.sampleRate = function () {
+  if (this.options.simulate) {
+    return this.options.simulatorSampleRate;
+  } else {
+    return k.OBCISampleRate200;
+  }
+};
+
+/**
+ * @description List available peripherals so the user can choose a device when not
+ *              automatically found.
+ * @param `maxSearchTime` {Number} - The amount of time to spend searching. (Default is 20 seconds)
+ * @returns {Promise} - If scan was started
+ */
+Ganglion.prototype.searchStart = function (maxSearchTime) {
+  const searchTime = maxSearchTime || k.OBCIGanglionBleSearchTime;
+
+  return new Promise((resolve, reject) => {
+    this._searchTimeout = setTimeout(() => {
+      this._nobleScanStop().catch(reject);
+      reject('Timeout: Unable to find Ganglion');
+    }, searchTime);
+
+    this._nobleScanStart()
+      .then(() => {
+        resolve();
+      })
+      .catch((err) => {
+        if (err !== k.OBCIErrorNobleAlreadyScanning) { // If it's already scanning
+          clearTimeout(this._searchTimeout);
+          reject(err);
+        }
+      });
+  });
+};
+
+/**
+ * Called to end a search.
+ * @return {global.Promise|Promise}
+ */
+Ganglion.prototype.searchStop = function () {
+  return this._nobleScanStop();
+};
+
+/**
+ * @description Sends a soft reset command to the board
+ * @returns {Promise} - Fulfilled if the command was sent to board.
+ * @author AJ Keller (@pushtheworldllc)
+ */
+Ganglion.prototype.softReset = function () {
+  return this.write(k.OBCIMiscSoftReset);
 };
 
 /**
@@ -254,11 +430,8 @@ Ganglion.prototype.streamStop = function () {
 };
 
 /**
- * @description Puts the board in synthetic data generation mode.
+ * @description Puts the board in synthetic data generation mode. Must call streamStart still.
  * @returns {Promise} indicating if the signal was able to be sent.
- * Note: You must have successfully connected to an OpenBCI board using the connect
- *           method. Just because the signal was able to be sent to the board, does not
- *           mean the board will start streaming.
  * @author AJ Keller (@pushtheworldllc)
  */
 Ganglion.prototype.syntheticEnable = function () {
@@ -273,11 +446,8 @@ Ganglion.prototype.syntheticEnable = function () {
 };
 
 /**
- * @description Sends a stop streaming command to the board.
- * @returns {Promise} indicating if the signal was able to be sent.
- * Note: You must have successfully connected to an OpenBCI board using the connect
- *           method. Just because the signal was able to be sent to the board, does not
- *           mean the board stopped streaming.
+ * @description Takes the board out of synthetic data generation mode. Must call streamStart still.
+ * @returns {Promise} - fulfilled if the command was sent.
  * @author AJ Keller (@pushtheworldllc)
  */
 Ganglion.prototype.syntheticDisable = function () {
@@ -292,9 +462,9 @@ Ganglion.prototype.syntheticDisable = function () {
 };
 
 /**
- * @description Should be used to send data to the board
- * @param data {Buffer | String} - The data to write out
- * @returns {Promise} if signal was able to be sent
+ * @description Used to send data to the board.
+ * @param data {Array | Buffer | Number | String} - The data to write out
+ * @returns {Promise} - fulfilled if command was able to be sent
  * @author AJ Keller (@pushtheworldllc)
  */
 Ganglion.prototype.write = function (data) {
@@ -312,95 +482,162 @@ Ganglion.prototype.write = function (data) {
   });
 };
 
+// //////// //
+// PRIVATES //
+// //////// //
 /**
- * @description This function is used as a convenience method to determine how many
- *              channels the current board is using.
- * @returns {Number} A number
- * Note: This is dependent on if you configured the board correctly on setup options
- * @author AJ Keller (@pushtheworldllc)
- */
-Ganglion.prototype.numberOfChannels = function () {
-  return k.OBCINumberOfChannelsGanglion;
-};
-
-/**
- * @description List available peripherals so the user can choose a device when not
- *              automatically found.
- * @returns {Promise} - On fulfill will contain a ganglion.
- */
-Ganglion.prototype.searchStart = function (maxSearchTime) {
-  const searchTime = maxSearchTime || k.OBCIGanglionBleSearchTime;
-
-  return new Promise((resolve, reject) => {
-    this._searchTimeout = setTimeout(() => {
-      this._nobleScanStop().catch(reject);
-      reject('Timeout: Unable to find Ganglion');
-    }, searchTime);
-
-    this._nobleScanStart().catch((err) => {
-      if (err !== k.OBCIErrorNobleAlreadyScanning) { // If it's already scanning
-        clearTimeout(this._searchTimeout);
-        reject(err);
-      }
-    });
-  });
-};
-
-/**
- * Called to end a search.
- */
-Ganglion.prototype.searchStop = function () {
-  return this._nobleScanStop();
-};
-
-/**
- * Event driven function called when a new device is discovered while scanning.
- * @param peripheral {Object} Peripheral object from noble.
+ * Builds a sample object from an array and sample number.
+ * @param sampleNumber
+ * @param rawData
+ * @return {{sampleNumber: *}}
  * @private
  */
-Ganglion.prototype._nobleOnDeviceDiscoveredCallback = function (peripheral) {
-  // if(this.options.verbose) console.log(peripheral.advertisement);
-  this.peripheralArray.push(peripheral);
-  if (utils.isPeripheralGanglion(peripheral)) {
-    if (this.options.verbose) console.log('Found ganglion!');
-    if (_.isUndefined(_.find(this.ganglionPeripheralArray, (p) => {
-      return p.advertisement.localName === peripheral.advertisement.localName;
-    }))) {
-      this.ganglionPeripheralArray.push(peripheral);
+Ganglion.prototype._buildSample = function (sampleNumber, rawData) {
+  let sample = {
+    sampleNumber: sampleNumber,
+    timeStamp: Date.now()
+  };
+  if (this.options.sendCounts) {
+    sample['channelDataCounts'] = rawData;
+  } else {
+    sample['channelData'] = [];
+    for (let j = 0; j < k.OBCINumberOfChannelsGanglion; j++) {
+      sample.channelData.push(rawData[j] * k.OBCIGanglionScaleFactorPerCountVolts);
     }
-    this.emit(k.OBCIEmitterGanglionFound, peripheral);
+  }
+  return sample;
+};
+
+/**
+ * Called to when a compressed packet is received.
+ * @param buffer {Buffer} Just the data portion of the sample. So 19 bytes.
+ * @return {Array} - An array of deltas of shape 2x4 (2 samples per packet
+ *  and 4 channels per sample.)
+ * @private
+ */
+Ganglion.prototype._decompressDeltas = function (buffer) {
+  let D = new Array(k.OBCIGanglionSamplesPerPacket); // 2
+  D[0] = [0, 0, 0, 0];
+  D[1] = [0, 0, 0, 0];
+
+  let receivedDeltas = [];
+  for (let i = 0; i < k.OBCIGanglionSamplesPerPacket; i++) {
+    receivedDeltas.push([0, 0, 0, 0]);
+  }
+
+  let miniBuf;
+
+  // Sample 1 - Channel 1
+  miniBuf = new Buffer(
+    [
+      (buffer[0] >> 5),
+      ((buffer[0] & 0x1F) << 3) | (buffer[1] >> 5),
+      ((buffer[1] & 0x1F) << 3) | (buffer[2] >> 5)
+    ]
+  );
+  receivedDeltas[0][0] = utils.convert19bitAsInt32(miniBuf);
+
+  // Sample 1 - Channel 2
+  miniBuf = new Buffer(
+    [
+      (buffer[2] & 0x1F) >> 2,
+      (buffer[2] << 6) | (buffer[3] >> 2),
+      (buffer[3] << 6) | (buffer[4] >> 2)
+    ]);
+  // miniBuf = new Buffer([(buffer[2] & 0x1F), buffer[3], buffer[4] >> 2]);
+  receivedDeltas[0][1] = utils.convert19bitAsInt32(miniBuf);
+
+  // Sample 1 - Channel 3
+  miniBuf = new Buffer(
+    [
+      ((buffer[4] & 0x03) << 1) | (buffer[5] >> 7),
+      ((buffer[5] & 0x7F) << 1) | (buffer[6] >> 7),
+      ((buffer[6] & 0x7F) << 1) | (buffer[7] >> 7)
+    ]);
+  receivedDeltas[0][2] = utils.convert19bitAsInt32(miniBuf);
+
+  // Sample 1 - Channel 4
+  miniBuf = new Buffer(
+    [
+      ((buffer[7] & 0x7F) >> 4),
+      ((buffer[7] & 0x0F) << 4) | (buffer[8] >> 4),
+      ((buffer[8] & 0x0F) << 4) | (buffer[9] >> 4)
+    ]);
+  receivedDeltas[0][3] = utils.convert19bitAsInt32(miniBuf);
+
+  // Sample 2 - Channel 1
+  miniBuf = new Buffer(
+    [
+      ((buffer[9] & 0x0F) >> 1),
+      (buffer[9] << 7) | (buffer[10] >> 1),
+      (buffer[10] << 7) | (buffer[11] >> 1)
+    ]);
+  receivedDeltas[1][0] = utils.convert19bitAsInt32(miniBuf);
+
+  // Sample 2 - Channel 2
+  miniBuf = new Buffer(
+    [
+      ((buffer[11] & 0x01) << 2) | (buffer[12] >> 6),
+      (buffer[12] << 2) | (buffer[13] >> 6),
+      (buffer[13] << 2) | (buffer[14] >> 6)
+    ]);
+  receivedDeltas[1][1] = utils.convert19bitAsInt32(miniBuf);
+
+  // Sample 2 - Channel 3
+  miniBuf = new Buffer(
+    [
+      ((buffer[14] & 0x38) >> 3),
+      ((buffer[14] & 0x07) << 5) | ((buffer[15] & 0xF8) >> 3),
+      ((buffer[15] & 0x07) << 5) | ((buffer[16] & 0xF8) >> 3)
+    ]);
+  receivedDeltas[1][2] = utils.convert19bitAsInt32(miniBuf);
+
+  // Sample 2 - Channel 4
+  miniBuf = new Buffer([(buffer[16] & 0x07), buffer[17], buffer[18]]);
+  receivedDeltas[1][3] = utils.convert19bitAsInt32(miniBuf);
+
+  return receivedDeltas;
+};
+
+/**
+ * Utilize `receivedDeltas` to get actual count values.
+ * @param receivedDeltas {Array} - An array of deltas
+ *  of shape 2x4 (2 samples per packet and 4 channels per sample.)
+ * @private
+ */
+Ganglion.prototype._decompressSamples = function (receivedDeltas) {
+  // add the delta to the previous value
+  for (let i = 1; i < 3; i++) {
+    for (let j = 0; j < 4; j++) {
+      this._decompressedSamples[i][j] = this._decompressedSamples[i - 1][j] - receivedDeltas[i - 1][j];
+    }
   }
 };
 
 /**
- * Call to add the noble event listeners.
+ * @description Called once when for any reason the ble connection is no longer open.
  * @private
  */
-Ganglion.prototype._nobleInit = function () {
-  noble.on(k.OBCINobleEmitterStateChange, (state) => {
-    // TODO: send state change error to gui
+Ganglion.prototype._disconnected = function () {
+  this._streaming = false;
 
-    // If the peripheral array is empty, do a scan to fill it.
-    if (state === k.OBCINobleStatePoweredOn) {
-      if (this.options.verbose) console.log('Bluetooth powered on');
-      this.emit(k.OBCIEmitterBlePoweredUp);
-      if (this.options.nobleScanOnPowerOn) {
-        this._nobleScanStart().catch((err) => {
-          throw err;
-        });
-      }
-      if (this.peripheralArray.length === 0) {
-      }
-    } else {
-      if (this.isSearching()) {
-        this._nobleScanStop().catch((err) => {
-          throw err;
-        });
-      }
-    }
-  });
+  // Clean up _noble
+  // TODO: Figure out how to fire function on process ending from inside module
+  // noble.removeListener('discover', this._nobleOnDeviceDiscoveredCallback);
 
-  noble.on(k.OBCINobleEmitterDiscover, this._nobleOnDeviceDiscoveredCallback.bind(this));
+  if (this._peripheral) {
+    this._peripheral.removeAllListeners('servicesDiscover');
+    this._peripheral.removeAllListeners('connect');
+    this._peripheral.removeAllListeners('disconnect');
+  }
+
+  // _peripheral = null;
+  if (this.options.verbose) console.log('Disconnected');
+  if (!this.manualDisconnect) {
+    this.autoReconnect();
+  }
+
+  this.emit('close');
 };
 
 /**
@@ -410,47 +647,6 @@ Ganglion.prototype._nobleInit = function () {
 Ganglion.prototype._nobleDestroy = function () {
   noble.removeAllListeners(k.OBCINobleEmitterStateChange);
   noble.removeAllListeners(k.OBCINobleEmitterDiscover);
-};
-
-Ganglion.prototype._nobleReady = function () {
-  return noble.state === k.OBCINobleStatePoweredOn;
-};
-
-/**
- * Call to perform a scan to get a list of peripherals.
- * @returns {global.Promise|Promise}
- * @private
- */
-Ganglion.prototype._nobleScanStart = function () {
-  return new Promise((resolve, reject) => {
-    if (this.isSearching()) return reject(k.OBCIErrorNobleAlreadyScanning);
-    if (!this._nobleReady()) return reject(k.OBCIErrorNobleNotInPoweredOnState);
-
-    this.peripheralArray = [];
-    noble.once(k.OBCINobleEmitterScanStart, () => {
-      if (this.options.verbose) console.log('Scan started');
-      this._scanning = true;
-      resolve();
-    });
-    // Only look so simblee ble devices and allow duplicates (multiple ganglions)
-    // noble.startScanning([k.SimbleeUuidService], true);
-    noble.startScanning([], false);
-  });
-};
-
-Ganglion.prototype._nobleScanStop = function () {
-  return new Promise((resolve, reject) => {
-    if (this.isSearching()) return reject(k.OBCIErrorNobleNotAlreadyScanning);
-    if (this.options.verbose) console.log(`Stopping scan`);
-
-    noble.once(k.OBCINobleEmitterScanStop, () => {
-      this._scanning = false;
-      if (this.options.verbose) console.log('Scan stopped');
-      resolve();
-    });
-    // Stop noble from scanning
-    noble.stopScanning();
-  });
 };
 
 Ganglion.prototype._nobleConnect = function (peripheral) {
@@ -537,108 +733,108 @@ Ganglion.prototype._nobleConnect = function (peripheral) {
   });
 };
 
-Ganglion.prototype.autoReconnect = function () {
-  // TODO: send back reconnect status, or reconnect fail
-  if (noble.state === k.OBCINobleStatePoweredOn) {
-    this._nobleScanStart();
-  } else {
-    console.warn('BLE not AVAILABLE');
-  }
-};
+/**
+ * Call to add the noble event listeners.
+ * @private
+ */
+Ganglion.prototype._nobleInit = function () {
+  noble.on(k.OBCINobleEmitterStateChange, (state) => {
+    // TODO: send state change error to gui
 
-Ganglion.prototype.decompressSamples = function (receivedDeltas) {
-  // add the delta to the previous value
-  for (let i = 1; i < 3; i++) {
-    for (let j = 0; j < 4; j++) {
-      this._decompressedSamples[i][j] = this._decompressedSamples[i - 1][j] - receivedDeltas[i - 1][j];
+    // If the peripheral array is empty, do a scan to fill it.
+    if (state === k.OBCINobleStatePoweredOn) {
+      if (this.options.verbose) console.log('Bluetooth powered on');
+      this.emit(k.OBCIEmitterBlePoweredUp);
+      if (this.options.nobleScanOnPowerOn) {
+        this._nobleScanStart().catch((err) => {
+          throw err;
+        });
+      }
+      if (this.peripheralArray.length === 0) {
+      }
+    } else {
+      if (this.isSearching()) {
+        this._nobleScanStop().catch((err) => {
+          throw err;
+        });
+      }
     }
+  });
+
+  noble.on(k.OBCINobleEmitterDiscover, this._nobleOnDeviceDiscoveredCallback.bind(this));
+};
+
+/**
+ * Event driven function called when a new device is discovered while scanning.
+ * @param peripheral {Object} Peripheral object from noble.
+ * @private
+ */
+Ganglion.prototype._nobleOnDeviceDiscoveredCallback = function (peripheral) {
+  // if(this.options.verbose) console.log(peripheral.advertisement);
+  this.peripheralArray.push(peripheral);
+  if (utils.isPeripheralGanglion(peripheral)) {
+    if (this.options.verbose) console.log('Found ganglion!');
+    if (_.isUndefined(_.find(this.ganglionPeripheralArray,
+        (p) => {
+          return p.advertisement.localName === peripheral.advertisement.localName;
+        }))) {
+      this.ganglionPeripheralArray.push(peripheral);
+    }
+    this.emit(k.OBCIEmitterGanglionFound, peripheral);
   }
 };
 
-Ganglion.prototype.decompressDeltas = function (buffer) {
-  let D = new Array(k.OBCIGanglionSamplesPerPacket); // 2
-  D[0] = [0, 0, 0, 0];
-  D[1] = [0, 0, 0, 0];
-
-  let receivedDeltas = [];
-  for (let i = 0; i < k.OBCIGanglionSamplesPerPacket; i++) {
-    receivedDeltas.push([0, 0, 0, 0]);
-  }
-
-  let miniBuf;
-
-  // Sample 1 - Channel 1
-  miniBuf = new Buffer(
-    [
-      (buffer[0] >> 5),
-      ((buffer[0] & 0x1F) << 3) | (buffer[1] >> 5),
-      ((buffer[1] & 0x1F) << 3) | (buffer[2] >> 5)
-    ]
-  );
-  receivedDeltas[0][0] = utils.convert19bitAsInt32(miniBuf);
-
-  // Sample 1 - Channel 2
-  miniBuf = new Buffer(
-    [
-      (buffer[2] & 0x1F) >> 2,
-      (buffer[2] << 6) | (buffer[3] >> 2),
-      (buffer[3] << 6) | (buffer[4] >> 2)
-    ]);
-  // miniBuf = new Buffer([(buffer[2] & 0x1F), buffer[3], buffer[4] >> 2]);
-  receivedDeltas[0][1] = utils.convert19bitAsInt32(miniBuf);
-
-  // Sample 1 - Channel 3
-  miniBuf = new Buffer(
-    [
-      ((buffer[4] & 0x03) << 1) | (buffer[5] >> 7),
-      ((buffer[5] & 0x7F) << 1) | (buffer[6] >> 7),
-      ((buffer[6] & 0x7F) << 1) | (buffer[7] >> 7)
-    ]);
-  receivedDeltas[0][2] = utils.convert19bitAsInt32(miniBuf);
-
-  // Sample 1 - Channel 4
-  miniBuf = new Buffer(
-    [
-      ((buffer[7] & 0x7F) >> 4),
-      ((buffer[7] & 0x0F) << 4) | (buffer[8] >> 4),
-      ((buffer[8] & 0x0F) << 4) | (buffer[9] >> 4)
-    ]);
-  receivedDeltas[0][3] = utils.convert19bitAsInt32(miniBuf);
-
-  // Sample 2 - Channel 1
-  miniBuf = new Buffer(
-    [
-      ((buffer[9] & 0x0F) >> 1),
-      (buffer[9] << 7) | (buffer[10] >> 1),
-      (buffer[10] << 7) | (buffer[11] >> 1)
-    ]);
-  receivedDeltas[1][0] = utils.convert19bitAsInt32(miniBuf);
-
-  // Sample 2 - Channel 2
-  miniBuf = new Buffer(
-    [
-      ((buffer[11] & 0x01) << 2) | (buffer[12] >> 6),
-      (buffer[12] << 2) | (buffer[13] >> 6),
-      (buffer[13] << 2) | (buffer[14] >> 6)
-    ]);
-  receivedDeltas[1][1] = utils.convert19bitAsInt32(miniBuf);
-
-  // Sample 2 - Channel 3
-  miniBuf = new Buffer(
-    [
-      ((buffer[14] & 0x38) >> 3),
-      ((buffer[14] & 0x07) << 5) | ((buffer[15] & 0xF8) >> 3),
-      ((buffer[15] & 0x07) << 5) | ((buffer[16] & 0xF8) >> 3)
-    ]);
-  receivedDeltas[1][2] = utils.convert19bitAsInt32(miniBuf);
-
-  // Sample 2 - Channel 4
-  miniBuf = new Buffer([(buffer[16] & 0x07), buffer[17], buffer[18]]);
-  receivedDeltas[1][3] = utils.convert19bitAsInt32(miniBuf);
-
-  return receivedDeltas;
+Ganglion.prototype._nobleReady = function () {
+  return noble.state === k.OBCINobleStatePoweredOn;
 };
 
+/**
+ * Call to perform a scan to get a list of peripherals.
+ * @returns {global.Promise|Promise}
+ * @private
+ */
+Ganglion.prototype._nobleScanStart = function () {
+  return new Promise((resolve, reject) => {
+    if (this.isSearching()) return reject(k.OBCIErrorNobleAlreadyScanning);
+    if (!this._nobleReady()) return reject(k.OBCIErrorNobleNotInPoweredOnState);
+
+    this.peripheralArray = [];
+    noble.once(k.OBCINobleEmitterScanStart, () => {
+      if (this.options.verbose) console.log('Scan started');
+      this._scanning = true;
+      resolve();
+    });
+    // Only look so simblee ble devices and allow duplicates (multiple ganglions)
+    // noble.startScanning([k.SimbleeUuidService], true);
+    noble.startScanning([], false);
+  });
+};
+
+/**
+ * Stop an active scan
+ * @return {global.Promise|Promise}
+ * @private
+ */
+Ganglion.prototype._nobleScanStop = function () {
+  return new Promise((resolve, reject) => {
+    if (this.isSearching()) return reject(k.OBCIErrorNobleNotAlreadyScanning);
+    if (this.options.verbose) console.log(`Stopping scan`);
+
+    noble.once(k.OBCINobleEmitterScanStop, () => {
+      this._scanning = false;
+      if (this.options.verbose) console.log('Scan stopped');
+      resolve();
+    });
+    // Stop noble from scanning
+    noble.stopScanning();
+  });
+};
+
+/**
+ * Route incoming data to proper functions
+ * @param data {Buffer} - Data buffer from noble Ganglion.
+ * @private
+ */
 Ganglion.prototype._processBytes = function (data) {
   if (this.options.debug) openBCIUtils.debugBytes('<<', data);
   this.lastPacket = data;
@@ -673,8 +869,16 @@ Ganglion.prototype._processBytes = function (data) {
   }
 };
 
+/**
+ * Process an accel packet of data.
+ * @param data {Buffer}
+ *  Data packet buffer from noble.
+ * @private
+ */
 Ganglion.prototype._processAccel = function (data) {
-  openBCIUtils.debugBytes('Accel <<< ', data);
+  if (this.options.debug) openBCIUtils.debugBytes('Accel <<< ', data);
+  const accelData = utils.getDataArrayAccel(data.slice(k.OBCIGanglionPacket.accelStart, k.OBCIGanglionPacket.accelStop), this.options.sendCounts);
+  this.emit(k.OBCIEmitterAccelerometer, accelData);
 };
 
 /**
@@ -705,7 +909,7 @@ Ganglion.prototype._processCompressedData = function (data) {
   }
 
   // Decompress the buffer into array
-  this.decompressSamples(this.decompressDeltas(buffer));
+  this._decompressSamples(this._decompressDeltas(buffer));
 
   this._packetCounter = parseInt(data[0]);
 
@@ -820,43 +1024,6 @@ Ganglion.prototype._processUncompressedData = function (data) {
 
   const newSample = this._buildSample(0, this._decompressedSamples[0]);
   this.emit(k.OBCIEmitterSample, newSample);
-};
-
-/**
- * Destroys the multi packet buffer.
- */
-Ganglion.prototype.destroyMultiPacketBuffer = function () {
-  this._multiPacketBuffer = null;
-};
-
-/**
- * Get's the multi packet buffer.
- * @return {null|Buffer} - Can be null if no multi packets recieved.
- */
-Ganglion.prototype.getMutliPacketBuffer = function () {
-  return this._multiPacketBuffer;
-};
-
-/**
- * Builds a sample object from an array and sample number.
- * @param sampleNumber
- * @param rawData
- * @return {{sampleNumber: *}}
- * @private
- */
-Ganglion.prototype._buildSample = function (sampleNumber, rawData) {
-  let sample = {
-    sampleNumber: sampleNumber
-  };
-  if (this.options.sendCounts) {
-    sample['channelDataCounts'] = rawData;
-  } else {
-    sample['channelData'] = [];
-    for (let j = 0; j < k.OBCINumberOfChannelsGanglion; j++) {
-      sample.channelData.push(rawData[j] * k.OBCIGanglionScaleFactorPerCountVolts);
-    }
-  }
-  return sample;
 };
 
 module.exports = Ganglion;

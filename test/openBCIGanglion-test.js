@@ -62,7 +62,7 @@ describe('#ganglion', function () {
         0b00001000  // 18
       ]);
     let expectedValue = [[0, 2, 10, 4], [262148, 507910, 393222, 8]];
-    let actualValue = ganglion.decompressDeltas(buffer);
+    let actualValue = ganglion._decompressDeltas(buffer);
     for (let i = 0; i < 4; i++) {
       (actualValue[0][i]).should.equal(expectedValue[0][i]);
       (actualValue[1][i]).should.equal(expectedValue[1][i]);
@@ -92,7 +92,7 @@ describe('#ganglion', function () {
         0b00000001  // 18
       ]);
     let expectedValue = [[-3, -5, -7, -11], [-262139, -198429, -262137, -4095]];
-    let actualValue = ganglion.decompressDeltas(buffer);
+    let actualValue = ganglion._decompressDeltas(buffer);
 
     for (let i = 0; i < 4; i++) {
       (actualValue[0][i]).should.equal(expectedValue[0][i]);
@@ -145,6 +145,41 @@ describe('#ganglion', function () {
     ganglion._processMultiBytePacketStop(newBufferStop);
     expect(ganglion.getMutliPacketBuffer()).to.equal(null);
     expect(messageEventCalled).to.equal(true);
+  });
+  describe('accel', function () {
+    after(() => {
+      ganglion.removeAllListeners('accelerometer');
+    });
+    afterEach(() => {
+      ganglion.options.sendCounts = false;
+    });
+    it('should emit a accel data array with counts', function () {
+      const bufAccel = utils.sampleAccel();
+      const dimensions = 3;
+      const accelDataFunc = (accelData) => {
+        expect(accelData.length).to.equal(dimensions);
+        for (let i = 0; i < dimensions; i++) {
+          expect(accelData[i]).to.equal(i);
+        }
+      };
+      ganglion.on('accelerometer', accelDataFunc);
+      ganglion.options.sendCounts = true;
+      ganglion._processAccel(bufAccel);
+      ganglion.removeListener('accelerometer', accelDataFunc);
+    });
+    it('should emit a accel data array with counts', function () {
+      const bufAccel = utils.sampleAccel();
+      const dimensions = 3;
+      const accelDataFunc = (accelData) => {
+        expect(accelData.length).to.equal(dimensions);
+        for (let i = 0; i < dimensions; i++) {
+          expect(accelData[i]).to.equal(i * 0.008 / Math.pow(2, 6));
+        }
+      };
+      ganglion.on('accelerometer', accelDataFunc);
+      ganglion._processAccel(bufAccel);
+      ganglion.removeListener('accelerometer', accelDataFunc);
+    });
   });
   describe('_processBytes', function () {
     let funcSpyAccel;
@@ -219,7 +254,7 @@ describe('#ganglion', function () {
       funcSpyUncompressedData.should.have.been.calledOnce;
     });
   });
-  it('should emit impedance value', function() {
+  it('should emit impedance value', function () {
     let expectedImpedanceValue = 1099;
     const payloadBuf = new Buffer(`${expectedImpedanceValue}${k.OBCIGanglionImpedanceStop}`);
     let totalEvents = 0;
@@ -301,7 +336,7 @@ describe('#ganglion', function () {
     ganglion._processImpedanceData(dataBuf);
 
     // Makes sure the correct amount of events were called.
-    expect(runningEventCount).to.equal(totalEvents)
+    expect(runningEventCount).to.equal(totalEvents);
   });
 });
 

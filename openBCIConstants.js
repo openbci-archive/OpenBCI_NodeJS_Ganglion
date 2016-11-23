@@ -110,6 +110,7 @@ const obciSimulatorRawAux = 'rawAux';
 const obciSimulatorStandard = 'standard';
 
 /** Emitters */
+const obciEmitterAccelerometer = 'accelerometer';
 const obciEmitterBlePoweredUp = 'blePoweredOn';
 const obciEmitterClose = 'close';
 const obciEmitterDroppedPacket = 'droppedPacket';
@@ -139,6 +140,8 @@ const obciGanglionByteIdMultiPacketStop = 135;
 const obciGanglionPacketSize = 20;
 const obciGanglionSamplesPerPacket = 2;
 const obciGanglionPacket = {
+  accelStart: 1,
+  accelStop: 7,
   byteId: 0,
   dataStart: 1,
   dataStop: 20
@@ -305,6 +308,7 @@ module.exports = {
   /** Possible Sample Rates */
   OBCISampleRate200: obciSampleRate200,
   /** Errors */
+  OBCIEmitterAccelerometer: obciEmitterAccelerometer,
   OBCIErrorNobleAlreadyScanning: errorNobleAlreadyScanning,
   OBCIErrorNobleNotAlreadyScanning: errorNobleNotAlreadyScanning,
   OBCIErrorNobleNotInPoweredOnState: errorNobleNotInPoweredOnState,
@@ -317,8 +321,6 @@ module.exports = {
   OBCIErrorUndefinedOrNullInput: errorUndefinedOrNullInput,
   /** Max Master Buffer Size */
   OBCIMasterBufferSize: obciMasterBufferSize,
-  /** Impedance Setter Maker */
-  getImpedanceSetter: impedanceSetter,
   /** Impedance */
   OBCIImpedanceTextBad: obciImpedanceTextBad,
   OBCIImpedanceTextGood: obciImpedanceTextGood,
