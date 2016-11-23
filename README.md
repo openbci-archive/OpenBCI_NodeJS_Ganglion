@@ -419,11 +419,39 @@ ourBoard.write('o');
 
 ### <a name="event"></a> Events:
 
-#### <a name="event-close"></a> .on('close', callback)
+#### <a name="event-accelerometer"></a> .on('accelerometer', callback)
 
-Emitted when the serial connection to the board is closed.
+Emitted when the module receives accelerometer data.
 
-#### <a name="event-close"></a> .on('droppedPacket', callback)
+Returns an object with properties:
+
+**_accelData_** {Array}
+
+Array of floats for each dimension in g's. 
+
+**NOTE:** Only present if `sendCounts` is `true`.
+
+**_accelDataCounts_** {Array}
+
+Array of integers for each dimension in counts. 
+
+**NOTE:** Only present if `sendCounts` is `false`.
+
+Example (if `sendCounts` is `false`):
+```json
+{
+  "accelData": [0.0, 0.0, 0.0, 0.0]
+}
+```
+
+Example (if `sendCounts` is `true`):
+```json
+{
+  "accelDataCounts": [0, 0, 0, 0]
+}
+```
+
+#### <a name="event-dropped-packet"></a> .on('droppedPacket', callback)
 
 Emitted when a packet (or packets) are dropped. Returns an array.
 

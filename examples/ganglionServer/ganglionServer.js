@@ -26,6 +26,10 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
     console.log('message: ', message.toString());
   });
 
+  ganglion.on('accelerometer', (accelData) => {
+    // Use accel array [0, 0, 0]
+  });
+
   ganglion.once('ready', () => {
     ganglion.syntheticEnable()
       .then(() => {

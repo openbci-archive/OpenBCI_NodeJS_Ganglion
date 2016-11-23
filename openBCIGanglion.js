@@ -876,7 +876,9 @@ Ganglion.prototype._processBytes = function (data) {
  * @private
  */
 Ganglion.prototype._processAccel = function (data) {
-  openBCIUtils.debugBytes('Accel <<< ', data);
+  if (this.options.debug) openBCIUtils.debugBytes('Accel <<< ', data);
+  const accelData = utils.getDataArrayAccel(data.slice(k.OBCIGanglionPacket.accelStart, k.OBCIGanglionPacket.accelStop), this.options.sendCounts);
+  this.emit(k.OBCIEmitterAccelerometer, accelData);
 };
 
 /**

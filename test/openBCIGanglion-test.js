@@ -146,6 +146,41 @@ describe('#ganglion', function () {
     expect(ganglion.getMutliPacketBuffer()).to.equal(null);
     expect(messageEventCalled).to.equal(true);
   });
+  describe('accel', function () {
+    after(() => {
+      ganglion.removeAllListeners('accelerometer');
+    });
+    afterEach(() => {
+      ganglion.options.sendCounts = false;
+    });
+    it('should emit a accel data array with counts', function () {
+      const bufAccel = utils.sampleAccel();
+      const dimensions = 3;
+      const accelDataFunc = (accelData) => {
+        expect(accelData.length).to.equal(dimensions);
+        for (let i = 0; i < dimensions; i++) {
+          expect(accelData[i]).to.equal(i);
+        }
+      };
+      ganglion.on('accelerometer', accelDataFunc);
+      ganglion.options.sendCounts = true;
+      ganglion._processAccel(bufAccel);
+      ganglion.removeListener('accelerometer', accelDataFunc);
+    });
+    it('should emit a accel data array with counts', function () {
+      const bufAccel = utils.sampleAccel();
+      const dimensions = 3;
+      const accelDataFunc = (accelData) => {
+        expect(accelData.length).to.equal(dimensions);
+        for (let i = 0; i < dimensions; i++) {
+          expect(accelData[i]).to.equal(i * 0.008 / Math.pow(2, 6));
+        }
+      };
+      ganglion.on('accelerometer', accelDataFunc);
+      ganglion._processAccel(bufAccel);
+      ganglion.removeListener('accelerometer', accelDataFunc);
+    });
+  });
   describe('_processBytes', function () {
     let funcSpyAccel;
     let funcSpyCompressedData;

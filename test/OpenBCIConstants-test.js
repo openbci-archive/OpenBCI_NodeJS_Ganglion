@@ -240,6 +240,9 @@ describe('OpenBCIConstants', function () {
     });
   });
   describe('Emitters', function () {
+    it('Event Emitter Accelerometer', function () {
+      assert.equal('accelerometer', k.OBCIEmitterAccelerometer);
+    });
     it('Event Emitter BLE Powered On', function () {
       assert.equal('blePoweredOn', k.OBCIEmitterBlePoweredUp);
     });
