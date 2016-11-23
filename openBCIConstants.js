@@ -317,8 +317,6 @@ module.exports = {
   OBCIErrorUndefinedOrNullInput: errorUndefinedOrNullInput,
   /** Max Master Buffer Size */
   OBCIMasterBufferSize: obciMasterBufferSize,
-  /** Impedance Setter Maker */
-  getImpedanceSetter: impedanceSetter,
   /** Impedance */
   OBCIImpedanceTextBad: obciImpedanceTextBad,
   OBCIImpedanceTextGood: obciImpedanceTextGood,
