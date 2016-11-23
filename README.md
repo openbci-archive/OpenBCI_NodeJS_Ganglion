@@ -33,11 +33,11 @@ The purpose of this module is to **get connected** and **start streaming** as fa
 10. [License](#license)
 11. [Roadmap](#roadmap)
 
-### <a name="tldr"></a> TL;DR:
+## <a name="tldr"></a> TL;DR:
 Get connected and start streaming right now
 
-```ecmascript 6
-const Ganglion = require('openbci').Ganglion;
+```js
+const Ganglion = require('openbci-ganglion').Ganglion;
 const ganglion = new Ganglion();
 ganglion.once('ganglionFound', (peripheral) => {
   // Stop searching for BLE devices once a ganglion is found.
@@ -58,7 +58,7 @@ ganglion.once('ganglionFound', (peripheral) => {
 ganglion.searchStart();
 ```
 
-### <a name="prerequisites"></a> Prerequisites:
+## <a name="prerequisites"></a> Prerequisites:
 
 Please ensure [Python 2.7 is installed](https://www.python.org/downloads/) for all OS.
 
@@ -83,9 +83,8 @@ Please ensure [Python 2.7 is installed](https://www.python.org/downloads/) for a
 See [@don](https://github.com/don)'s set up guide on [Bluetooth LE with Node.js and Noble on Windows](https://www.youtube.com/watch?v=mL9B8wuEdms).
 
  
-### <a name="install"></a> Installation:
-
-####
+## <a name="install"></a> Installation:
+Install from npm:
 ```
 npm install openbci-ganglion
 ```
