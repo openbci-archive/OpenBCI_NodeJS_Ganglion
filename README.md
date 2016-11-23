@@ -1,9 +1,8 @@
-[![Stories in Ready](https://badge.waffle.io/OpenBCI/OpenBCI_NodeJS.png?label=ready&title=Ready)](https://waffle.io/OpenBCI/OpenBCI_NodeJS)
 [![Join the chat at https://gitter.im/OpenBCI/OpenBCI_NodeJS](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/OpenBCI/OpenBCI_NodeJS?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![Build Status](https://travis-ci.org/OpenBCI/OpenBCI_NodeJS.svg?branch=master)](https://travis-ci.org/OpenBCI/OpenBCI_NodeJS)
-[![codecov](https://codecov.io/gh/OpenBCI/OpenBCI_NodeJS/branch/master/graph/badge.svg)](https://codecov.io/gh/OpenBCI/OpenBCI_NodeJS)
-[![Dependency Status](https://david-dm.org/OpenBCI/OpenBCI_NodeJS.svg)](https://david-dm.org/OpenBCI/OpenBCI_NodeJS)
-[![npm](https://img.shields.io/npm/dm/openbci.svg?maxAge=2592000)](http://npmjs.com/package/openbci)
+[![Build Status](https://travis-ci.org/OpenBCI/OpenBCI_NodeJS_Ganglion.svg?branch=master)](https://travis-ci.org/OpenBCI/OpenBCI_NodeJS_Ganglion)
+[![codecov](https://codecov.io/gh/OpenBCI/OpenBCI_NodeJS_Ganglion/branch/master/graph/badge.svg)](https://codecov.io/gh/OpenBCI/OpenBCI_NodeJS_Ganglion)
+[![Dependency Status](https://david-dm.org/OpenBCI/OpenBCI_NodeJS_Ganglion.svg)](https://david-dm.org/OpenBCI/OpenBCI_NodeJS_Ganglion)
+[![npm](https://img.shields.io/npm/dm/openbci-ganglion.svg?maxAge=2592000)](http://npmjs.com/package/openbci-ganglion)
 [![js-semistandard-style](https://img.shields.io/badge/code%20style-semistandard-brightgreen.svg?style=flat-square)](https://github.com/Flet/semistandard)
 
 # OpenBCI Node.js SDK
@@ -19,8 +18,8 @@ The purpose of this module is to **get connected** and **start streaming** as fa
 
 1. [TL;DR](#tldr)
 2. [Prerequisites](#prerequisites)
-2. [Installation](#install)
-3. [Cyton (32bit Board)](#cyton)
+3. [Installation](#install)
+4. [Ganglion](#ganglion)
   2. [General Overview](#cyton-general-overview)
   3. [SDK Reference Guide](#cyton-sdk-reference-guide)
     * [Constructor](#cyton-constructor)
