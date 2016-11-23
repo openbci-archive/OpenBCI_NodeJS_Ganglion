@@ -1,0 +1,33 @@
+language: node_js
+node_js:
+  - "4.2.3"
+  - "5.11.0"
+  - "6.0"
+  - "6.1"
+  - "6.2"
+  - "6.3"
+  - "6.4"
+  - "6.5"
+  - "6.6"
+  - "6.7"
+  - "6.8"
+  - "7.0"
+  - "7.1"
+
+before_install:
+# before_install code came from here: https://github.com/node-inspector/node-inspector/issues/776
+  - sudo apt-get install python-software-properties
+  - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+  - sudo apt-get update
+  - sudo apt-get install gcc-5 g++-5
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 80 --slave /usr/bin/g++ g++ /usr/bin/g++-5
+  - sudo update-alternatives --set gcc /usr/bin/gcc-5
+# https://docs.travis-ci.com/user/customizing-the-build
+# https://www.howtoinstall.co/en/ubuntu/trusty/libbluetooth-dev
+  - npm install -g node-pre-gyp-github node-gyp
+  - sudo apt-get install -qq bluetooth bluez libbluetooth-dev libudev-dev
+
+install:
+  - npm install --all
+script:
+  - npm run test-cov
