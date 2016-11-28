@@ -2,7 +2,7 @@
 * Created by ajk on 12/16/15.
 */
 'use strict';
-const bluebirdChecks = require('./bluebirdChecks');
+// const bluebirdChecks = require('./bluebirdChecks');
 const assert = require('assert');
 const k = require('../openBCIConstants');
 const chai = require('chai');

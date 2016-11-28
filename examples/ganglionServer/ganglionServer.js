@@ -2,7 +2,7 @@ const Ganglion = require('../../index').Ganglion;
 const k = require('../../openBCIConstants');
 const verbose = true;
 var ganglion = new Ganglion({
-  // debug: true,
+  debug: true,
   sendCounts: true,
   verbose: verbose
 });
@@ -16,10 +16,14 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
 
   ganglion.on('sample', (sample) => {
     /** Work with sample */
-    console.log(sample.sampleNumber);
+    // console.log(sample.sampleNumber);
     // for (var i = 0; i < ganglion.numberOfChannels(); i++) {
     //   console.log("Channel " + (i + 1) + ": " + sample.channelData[i].toFixed(8) + " Volts.");
     // }
+  });
+
+  ganglion.on('droppedPackets', (data) => {
+    // console.log('droppedPackets:', data);
   });
 
   ganglion.on('message', (message) => {
@@ -28,14 +32,11 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
 
   ganglion.on('accelerometer', (accelData) => {
     // Use accel array [0, 0, 0]
+    // console.log(`z: ${accelData[2]}`);
   });
 
   ganglion.once('ready', () => {
-    ganglion.syntheticEnable()
-      .then(() => {
-        return ganglion.streamStart();
-      })
-      .catch(errorFunc);
+    ganglion.streamStart().catch(errorFunc);
     console.log('ready');
   });
 
