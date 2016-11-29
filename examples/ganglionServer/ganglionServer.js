@@ -2,7 +2,7 @@ const Ganglion = require('../../index').Ganglion;
 const k = require('../../openBCIConstants');
 const verbose = true;
 var ganglion = new Ganglion({
-  // debug: true,
+  debug: true,
   sendCounts: true,
   verbose: verbose
 });
@@ -12,30 +12,32 @@ function errorFunc (err) {
 }
 
 const impedance = false;
-const accel = true;
+const accel = false;
 
 ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
   ganglion.searchStop().catch(errorFunc);
 
   ganglion.on('sample', (sample) => {
     /** Work with sample */
-    // console.log(sample.sampleNumber);
-    // for (var i = 0; i < ganglion.numberOfChannels(); i++) {
-    //   console.log("Channel " + (i + 1) + ": " + sample.channelData[i].toFixed(8) + " Volts.");
-    // }
+    console.log(sample.sampleNumber);
   });
 
-  ganglion.on('droppedPackets', (data) => {
-    // console.log('droppedPackets:', data);
+  ganglion.on('droppedPacket', (data) => {
+    console.log('droppedPacket:', data);
   });
 
   ganglion.on('message', (message) => {
     console.log('message: ', message.toString());
   });
 
+  let lastVal = 0;
   ganglion.on('accelerometer', (accelData) => {
     // Use accel array [0, 0, 0]
-    console.log(`counter: ${accelData[2]}`);
+    if (accelData[2] - lastVal > 1) {
+      console.log(`Diff: ${accelData[2] - lastVal}`);
+    }
+    lastVal = accelData[2];
+    // console.log(`counter: ${accelData[2]}`);
   });
 
   ganglion.on('impedance', (impedanceObj) => {
