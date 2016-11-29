@@ -161,6 +161,14 @@ describe('OpenBCIConstants', function () {
       assert.equal('s', k.OBCIStreamStop);
     });
   });
+  describe('Accel enable/disable commands', function () {
+    it('starts', function () {
+      assert.equal('n', k.OBCIAccelStart);
+    });
+    it('stops', function () {
+      assert.equal('N', k.OBCIAccelStop);
+    });
+  });
   describe('Miscellaneous', function () {
     it('queries register settings', function () {
       assert.equal('?', k.OBCIMiscQueryRegisterSettings);

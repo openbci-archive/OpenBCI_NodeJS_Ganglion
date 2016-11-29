@@ -170,27 +170,6 @@ const ourBoard = new Ganglion();
 ourBoard.streamStop().then(ourBoard.disconnect());
 ```
 
-Auto-finding boards
--------------------
-You must have the OpenBCI board connected to the PC before trying to automatically find it.
-
-If a port is not automatically found, then call [`.listPorts()`](#method-list-ports) to get a list of all serial ports this would be a good place to present a drop down picker list to the user, so they may manually select the serial port name.
-
-```js
-const Ganglion = require('openbci-ganglion').Ganglion;
-const ourBoard = new Ganglion();
-ourBoard.autoFindOpenBCIBoard().then(portName => {
-    if(portName) {
-        /**
-        * Connect to the board with portName
-        * i.e. ourBoard.connect(portName).....
-        */
-    } else {
-        /**Unable to auto find OpenBCI board*/
-    }
-});
-```
-
 See Reference Guide for a complete list of impedance tests.
 
 ## <a name="sdk-reference-guide"></a> SDK Reference Guide:
@@ -224,7 +203,23 @@ Board optional configurations.
 
 ### <a name="methods"></a> Methods:
 
-#### <a name="method-auto-reconnectd"></a> .autoReconnect()
+#### <a name="method-accel-start"></a> .accelStart()
+
+Used to enable the accelerometer. Will result in accelerometer packets arriving 10 times a second.
+
+**Note that the accelerometer is enabled by default.**
+
+**_Returns_** {Promise} - fulfilled once the command was sent to the board.
+
+#### <a name="method-accel-stop"></a> .accelStop()
+
+Used to disable the accelerometer. Prevents accelerometer data packets from arriving.
+
+**Note that the accelerometer is enabled by default.**
+
+**_Returns_** {Promise} - fulfilled once the command was sent to the board.
+
+#### <a name="method-auto-reconnect"></a> .autoReconnect()
 
 Used to start a scan if power is on. Useful if a connection is dropped.
 
