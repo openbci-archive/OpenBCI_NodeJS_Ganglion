@@ -166,7 +166,7 @@ describe('OpenBCIConstants', function () {
       assert.equal('n', k.OBCIAccelStart);
     });
     it('stops', function () {
-      assert.equal('N', k.OBCIStreamStop);
+      assert.equal('N', k.OBCIAccelStop);
     });
   });
   describe('Miscellaneous', function () {
