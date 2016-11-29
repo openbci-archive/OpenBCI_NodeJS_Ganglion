@@ -2,7 +2,7 @@ const Ganglion = require('../../index').Ganglion;
 const k = require('../../openBCIConstants');
 const verbose = true;
 var ganglion = new Ganglion({
-  debug: true,
+  // debug: true,
   sendCounts: true,
   verbose: verbose
 });
@@ -10,6 +10,9 @@ var ganglion = new Ganglion({
 function errorFunc (err) {
   throw err;
 }
+
+const impedance = false;
+const accel = true;
 
 ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
   ganglion.searchStop().catch(errorFunc);
@@ -32,11 +35,25 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
 
   ganglion.on('accelerometer', (accelData) => {
     // Use accel array [0, 0, 0]
-    // console.log(`z: ${accelData[2]}`);
+    console.log(`counter: ${accelData[2]}`);
+  });
+
+  ganglion.on('impedance', (impedanceObj) => {
+    console.log(`channel ${impedanceObj.channelNumber} has impedance ${impedanceObj.impedanceValue}`);
   });
 
   ganglion.once('ready', () => {
-    ganglion.streamStart().catch(errorFunc);
+    if (accel) {
+      ganglion.accelStart()
+        .then(() => {
+          return ganglion.streamStart();
+        })
+        .catch(errorFunc);
+    } else if (impedance) {
+      ganglion.impedanceStart().catch(errorFunc);
+    } else {
+      ganglion.streamStart().catch(errorFunc);
+    }
     console.log('ready');
   });
 
@@ -49,6 +66,18 @@ function exitHandler (options, err) {
   if (options.cleanup) {
     if (verbose) console.log('clean');
     // console.log(connectedPeripheral)
+    if (impedance) {
+      ganglion.impedanceStop();
+    }
+    if (ganglion.isSearching()) {
+      ganglion.searchStop();
+    }
+    if (accel) {
+      ganglion.accelStop()
+        .then(() => {
+          return ganglion.streamStop();
+        });
+    }
     ganglion.manualDisconnect = true;
     ganglion.disconnect();
   }
