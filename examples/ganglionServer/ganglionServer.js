@@ -11,32 +11,51 @@ function errorFunc (err) {
   throw err;
 }
 
+const impedance = false;
+const accel = false;
+
 ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
   ganglion.searchStop().catch(errorFunc);
 
   ganglion.on('sample', (sample) => {
     /** Work with sample */
-    // console.log(sample.sampleNumber);
-    // for (var i = 0; i < ganglion.numberOfChannels(); i++) {
-    //   console.log("Channel " + (i + 1) + ": " + sample.channelData[i].toFixed(8) + " Volts.");
-    // }
+    console.log(sample.sampleNumber);
   });
 
-  ganglion.on('droppedPackets', (data) => {
-    // console.log('droppedPackets:', data);
+  ganglion.on('droppedPacket', (data) => {
+    console.log('droppedPacket:', data);
   });
 
   ganglion.on('message', (message) => {
     console.log('message: ', message.toString());
   });
 
+  let lastVal = 0;
   ganglion.on('accelerometer', (accelData) => {
     // Use accel array [0, 0, 0]
-    // console.log(`z: ${accelData[2]}`);
+    if (accelData[2] - lastVal > 1) {
+      console.log(`Diff: ${accelData[2] - lastVal}`);
+    }
+    lastVal = accelData[2];
+    // console.log(`counter: ${accelData[2]}`);
+  });
+
+  ganglion.on('impedance', (impedanceObj) => {
+    console.log(`channel ${impedanceObj.channelNumber} has impedance ${impedanceObj.impedanceValue}`);
   });
 
   ganglion.once('ready', () => {
-    ganglion.streamStart().catch(errorFunc);
+    if (accel) {
+      ganglion.accelStart()
+        .then(() => {
+          return ganglion.streamStart();
+        })
+        .catch(errorFunc);
+    } else if (impedance) {
+      ganglion.impedanceStart().catch(errorFunc);
+    } else {
+      ganglion.streamStart().catch(errorFunc);
+    }
     console.log('ready');
   });
 
@@ -49,6 +68,18 @@ function exitHandler (options, err) {
   if (options.cleanup) {
     if (verbose) console.log('clean');
     // console.log(connectedPeripheral)
+    if (impedance) {
+      ganglion.impedanceStop();
+    }
+    if (ganglion.isSearching()) {
+      ganglion.searchStop();
+    }
+    if (accel) {
+      ganglion.accelStop()
+        .then(() => {
+          return ganglion.streamStop();
+        });
+    }
     ganglion.manualDisconnect = true;
     ganglion.disconnect();
   }

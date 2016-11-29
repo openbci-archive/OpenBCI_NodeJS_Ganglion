@@ -67,6 +67,10 @@ const obciSimulatorFragmentationNone = 'none';
 /** Possible Sample Rates */
 const obciSampleRate200 = 200;
 
+/** Accel enable/disable commands */
+const obciAccelStart = 'n';
+const obciAccelStop = 'N';
+
 /** Errors */
 const errorNobleAlreadyScanning = 'Scan already under way';
 const errorNobleNotAlreadyScanning = 'No scan started';
@@ -307,6 +311,9 @@ module.exports = {
   OBCIBoardGanglion: obciBoardGanglion,
   /** Possible Sample Rates */
   OBCISampleRate200: obciSampleRate200,
+  /** Accel enable/disable commands */
+  OBCIAccelStart: obciAccelStart,
+  OBCIAccelStop: obciAccelStop,
   /** Errors */
   OBCIEmitterAccelerometer: obciEmitterAccelerometer,
   OBCIErrorNobleAlreadyScanning: errorNobleAlreadyScanning,

@@ -134,6 +134,23 @@ function Ganglion (options) {
 util.inherits(Ganglion, EventEmitter);
 
 /**
+ * Used to enable the accelerometer. Will result in accelerometer packets arriving 10 times a second.
+ *  Note that the accelerometer is enabled by default.
+ * @return {Promise}
+ */
+Ganglion.prototype.accelStart = function () {
+  return this.write(k.OBCIAccelStart);
+};
+
+/**
+ * Used to disable the accelerometer. Prevents accelerometer data packets from arriving.
+ * @return {Promise}
+ */
+Ganglion.prototype.accelStop = function () {
+  return this.write(k.OBCIAccelStop);
+};
+
+/**
  * Used to start a scan if power is on. Useful if a connection is dropped.
  */
 Ganglion.prototype.autoReconnect = function () {
@@ -895,8 +912,8 @@ Ganglion.prototype._processCompressedData = function (data) {
     // var reset = Buffer.from(retryString);
     // _sendCharacteristic.write(reset);
     this._droppedPacketCounter++;
-    this.emit(k.OBCIEmitterDroppedPacket, [parseInt(data[0]) - 1]);
-    // if (this.options.verbose) console.error('\t>>>PACKET DROP<<<  ' + this._packetCounter + '  ' + this.lastDroppedPacket + ' ' + this._droppedPacketCounter);
+    // this.emit(k.OBCIEmitterDroppedPacket, [parseInt(data[0]) - 1]);
+    if (this.options.verbose) console.error('\t>>>PACKET DROP<<<  ' + this._packetCounter + '  ' + this.lastDroppedPacket + ' ' + this._droppedPacketCounter);
   }
 
   let buffer = data.slice(k.OBCIGanglionPacket.dataStart, k.OBCIGanglionPacket.dataStop);
@@ -931,7 +948,7 @@ Ganglion.prototype._processCompressedData = function (data) {
  * @private
  */
 Ganglion.prototype._processImpedanceData = function (data) {
-  if (this.options.verbose) openBCIUtils.debugBytes('Impedance <<< ', data);
+  if (this.options.debug) openBCIUtils.debugBytes('Impedance <<< ', data);
   const byteId = parseInt(data[0]);
   let channelNumber;
   switch (byteId) {
