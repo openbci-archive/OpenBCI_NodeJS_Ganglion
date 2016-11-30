@@ -107,11 +107,14 @@ function Ganglion (options) {
   this._connected = false;
   this._decompressedSamples = new Array(3);
   this._droppedPacketCounter = 0;
+  this._firstPacket = true;
   this._lastDroppedPacket = null;
   this._lastPacket = null;
   this._localName = null;
   this._multiPacketBuffer = null;
-  this._packetCounter = 0;
+  this._packetBuffer = [];
+  this._requestedPacketResend = [];
+  this._packetCounter = k.OBCIGanglionByteIdSampleMax;
   this._peripheral = null;
   this._scanning = false;
   this._sendCharacteristic = null;
@@ -527,7 +530,7 @@ Ganglion.prototype._buildSample = function (sampleNumber, rawData) {
 
 /**
  * Called to when a compressed packet is received.
- * @param buffer {Buffer} Just the data portion of the sample. So 19 bytes.
+ * @param buffer {Buffer} Just the data portion of the sample. So 18 bytes.
  * @return {Array} - An array of deltas of shape 2x4 (2 samples per packet
  *  and 4 channels per sample.)
  * @private
@@ -547,71 +550,71 @@ Ganglion.prototype._decompressDeltas = function (buffer) {
   // Sample 1 - Channel 1
   miniBuf = new Buffer(
     [
-      (buffer[0] >> 5),
-      ((buffer[0] & 0x1F) << 3) | (buffer[1] >> 5),
-      ((buffer[1] & 0x1F) << 3) | (buffer[2] >> 5)
+      (buffer[0] >> 6),
+      ((buffer[0] & 0x3F) << 2) | (buffer[1] >> 6),
+      ((buffer[1] & 0x3F) << 2) | (buffer[2] >> 6)
     ]
   );
-  receivedDeltas[0][0] = utils.convert19bitAsInt32(miniBuf);
+  receivedDeltas[0][0] = utils.convert18bitAsInt32(miniBuf);
 
   // Sample 1 - Channel 2
   miniBuf = new Buffer(
     [
-      (buffer[2] & 0x1F) >> 2,
-      (buffer[2] << 6) | (buffer[3] >> 2),
-      (buffer[3] << 6) | (buffer[4] >> 2)
+      (buffer[2] & 0x3F) >> 4,
+      (buffer[2] << 4) | (buffer[3] >> 4),
+      (buffer[3] << 4) | (buffer[4] >> 4)
     ]);
   // miniBuf = new Buffer([(buffer[2] & 0x1F), buffer[3], buffer[4] >> 2]);
-  receivedDeltas[0][1] = utils.convert19bitAsInt32(miniBuf);
+  receivedDeltas[0][1] = utils.convert18bitAsInt32(miniBuf);
 
   // Sample 1 - Channel 3
   miniBuf = new Buffer(
     [
-      ((buffer[4] & 0x03) << 1) | (buffer[5] >> 7),
-      ((buffer[5] & 0x7F) << 1) | (buffer[6] >> 7),
-      ((buffer[6] & 0x7F) << 1) | (buffer[7] >> 7)
+      (buffer[4] & 0x0F) >> 2,
+      (buffer[4] << 6) | (buffer[5] >> 2),
+      (buffer[5] << 6) | (buffer[6] >> 2)
     ]);
-  receivedDeltas[0][2] = utils.convert19bitAsInt32(miniBuf);
+  receivedDeltas[0][2] = utils.convert18bitAsInt32(miniBuf);
 
   // Sample 1 - Channel 4
   miniBuf = new Buffer(
     [
-      ((buffer[7] & 0x7F) >> 4),
-      ((buffer[7] & 0x0F) << 4) | (buffer[8] >> 4),
-      ((buffer[8] & 0x0F) << 4) | (buffer[9] >> 4)
+      (buffer[6] & 0x03),
+      buffer[7],
+      buffer[8]
     ]);
-  receivedDeltas[0][3] = utils.convert19bitAsInt32(miniBuf);
+  receivedDeltas[0][3] = utils.convert18bitAsInt32(miniBuf);
 
   // Sample 2 - Channel 1
   miniBuf = new Buffer(
     [
-      ((buffer[9] & 0x0F) >> 1),
-      (buffer[9] << 7) | (buffer[10] >> 1),
-      (buffer[10] << 7) | (buffer[11] >> 1)
+      (buffer[9] >> 6),
+      ((buffer[9] & 0x3F) << 2) | (buffer[10] >> 6),
+      ((buffer[10] & 0x3F) << 2) | (buffer[11] >> 6)
     ]);
-  receivedDeltas[1][0] = utils.convert19bitAsInt32(miniBuf);
+  receivedDeltas[1][0] = utils.convert18bitAsInt32(miniBuf);
 
   // Sample 2 - Channel 2
   miniBuf = new Buffer(
     [
-      ((buffer[11] & 0x01) << 2) | (buffer[12] >> 6),
-      (buffer[12] << 2) | (buffer[13] >> 6),
-      (buffer[13] << 2) | (buffer[14] >> 6)
+      (buffer[11] & 0x3F) >> 4,
+      (buffer[11] << 4) | (buffer[12] >> 4),
+      (buffer[12] << 4) | (buffer[13] >> 4)
     ]);
-  receivedDeltas[1][1] = utils.convert19bitAsInt32(miniBuf);
+  receivedDeltas[1][1] = utils.convert18bitAsInt32(miniBuf);
 
   // Sample 2 - Channel 3
   miniBuf = new Buffer(
     [
-      ((buffer[14] & 0x38) >> 3),
-      ((buffer[14] & 0x07) << 5) | ((buffer[15] & 0xF8) >> 3),
-      ((buffer[15] & 0x07) << 5) | ((buffer[16] & 0xF8) >> 3)
+      (buffer[13] & 0x0F) >> 2,
+      (buffer[13] << 6) | (buffer[14] >> 2),
+      (buffer[14] << 6) | (buffer[15] >> 2)
     ]);
-  receivedDeltas[1][2] = utils.convert19bitAsInt32(miniBuf);
+  receivedDeltas[1][2] = utils.convert18bitAsInt32(miniBuf);
 
   // Sample 2 - Channel 4
-  miniBuf = new Buffer([(buffer[16] & 0x07), buffer[17], buffer[18]]);
-  receivedDeltas[1][3] = utils.convert19bitAsInt32(miniBuf);
+  miniBuf = new Buffer([(buffer[15] & 0x03), buffer[16], buffer[17]]);
+  receivedDeltas[1][3] = utils.convert18bitAsInt32(miniBuf);
 
   return receivedDeltas;
 };
@@ -823,7 +826,9 @@ Ganglion.prototype._nobleScanStart = function () {
     });
     // Only look so simblee ble devices and allow duplicates (multiple ganglions)
     // noble.startScanning([k.SimbleeUuidService], true);
-    noble.startScanning([], false);
+    noble.startScanning([], false).catch((err) => {
+      console.log(err);
+    })
   });
 };
 
@@ -857,11 +862,7 @@ Ganglion.prototype._processBytes = function (data) {
   this.lastPacket = data;
   let byteId = parseInt(data[0]);
   if (byteId <= k.OBCIGanglionByteIdSampleMax) {
-    if (byteId === k.OBCIGanglionByteIdRawData) {
-      this._processUncompressedData(data);
-    } else {
-      this._processCompressedData(data);
-    }
+    this._processProcessSampleData(data);
   } else {
     switch (byteId) {
       case k.OBCIGanglionByteIdAccel:
@@ -906,27 +907,27 @@ Ganglion.prototype._processAccel = function (data) {
  */
 Ganglion.prototype._processCompressedData = function (data) {
   // check for dropped packet
-  if (parseInt(data[0]) - this._packetCounter !== 1) {
-    this.lastDroppedPacket = parseInt(data[0]); // - 2;
-    // var retryString = "&"+dropped;
-    // var reset = Buffer.from(retryString);
-    // _sendCharacteristic.write(reset);
-    this._droppedPacketCounter++;
-    // this.emit(k.OBCIEmitterDroppedPacket, [parseInt(data[0]) - 1]);
-    if (this.options.verbose) console.error('\t>>>PACKET DROP<<<  ' + this._packetCounter + '  ' + this.lastDroppedPacket + ' ' + this._droppedPacketCounter);
-  }
+  // if (parseInt(data[0]) - this._packetCounter !== 1) {
+  //   this.lastDroppedPacket = parseInt(data[0]); // - 2;
+  //   // var retryString = "&"+dropped;
+  //   // var reset = Buffer.from(retryString);
+  //   // _sendCharacteristic.write(reset);
+  //   this._droppedPacketCounter++;
+  //   this.emit(k.OBCIEmitterDroppedPacket, [parseInt(data[0]) - 1]);
+  //   // if (this.options.verbose) console.error('\t>>>PACKET DROP<<<  ' + this._packetCounter + '  ' + this.lastDroppedPacket + ' ' + this._droppedPacketCounter);
+  // }
 
-  let buffer = data.slice(k.OBCIGanglionPacket.dataStart, k.OBCIGanglionPacket.dataStop);
-
-  if (k.getVersionNumber(process.version) >= 6) {
-    // From introduced in node version 6.x.x
-    buffer = Buffer.from(buffer);
-  } else {
-    buffer = new Buffer(buffer);
-  }
+  // let buffer = data.slice(k.OBCIGanglionPacket.dataStart, k.OBCIGanglionPacket.dataStop);
+  //
+  // if (k.getVersionNumber(process.version) >= 6) {
+  //   // From introduced in node version 6.x.x
+  //   buffer = Buffer.from(buffer);
+  // } else {
+  //   buffer = new Buffer(buffer);
+  // }
 
   // Decompress the buffer into array
-  this._decompressSamples(this._decompressDeltas(buffer));
+  this._decompressSamples(this._decompressDeltas(data.slice(k.OBCIGanglionPacket.dataStart, k.OBCIGanglionPacket.dataStop)));
 
   this._packetCounter = parseInt(data[0]);
 
@@ -1014,6 +1015,92 @@ Ganglion.prototype._processMultiBytePacketStop = function (data) {
   this.destroyMultiPacketBuffer();
 };
 
+Ganglion.prototype._resetDroppedPacketSystem = function () {
+  this._packetBuffer = [];
+  this._requestedPacketResend = [];
+  this._packetCounter = -1;
+  this._firstPacket = true;
+};
+
+Ganglion.prototype._droppedPacket = function (droppedPacketNumber) {
+  this.write(new Buffer([k.OBCIMiscResend, droppedPacketNumber]));
+  this.emit(k.OBCIEmitterDroppedPacket, [droppedPacketNumber]);
+  this._requestedPacketResend.push(droppedPacketNumber);
+};
+
+Ganglion.prototype._processProcessSampleData = function(data) {
+  const curByteId = parseInt(data[0]);
+  const difByteId = curByteId - this._packetCounter;
+
+  if (this._firstPacket) {
+    this._firstPacket = false;
+    this._processRouteSampleData(data);
+    return;
+  }
+
+  if (this._requestedPacketResend.length > 0) {
+    let dumped = false;
+    for (let i = 0; i < this._requestedPacketResend.length; i++) {
+      if (this._requestedPacketResend[i] === curByteId) {
+        dumped = true;
+        const tempCurBytId = this._packetCounter;
+        this._processRouteSampleData(data);
+        this._packetCounter = tempCurBytId;
+        this._requestedPacketResend.splice(i, 1);
+        let bufData = this._packetBuffer.shift();
+        while (bufData) {
+          this._processRouteSampleData(bufData);
+          bufData = this._packetBuffer.shift();
+        }
+        return;
+      }
+    }
+    if (!dumped) {
+      this._packetBuffer.push(data);
+      this._packetCounter = curByteId;
+      return;
+    }
+  }
+
+  // Wrap around situation
+  if (difByteId < 0) {
+    if (this._packetCounter === 127) {
+      if (curByteId === 0) {
+        this._processRouteSampleData(data);
+      } else {
+        this._droppedPacket(curByteId - 1);
+      }
+    } else {
+      let tempCounter = this._packetCounter + 1;
+      while (tempCounter <= 127) {
+        this._droppedPacket(tempCounter);
+        tempCounter++;
+      }
+    }
+    this._packetBuffer.push(data);
+    this._packetCounter = curByteId;
+  } else if (difByteId > 1) {
+    let tempCounter = this._packetCounter + 1;
+    while (tempCounter < curByteId) {
+      this._droppedPacket(tempCounter);
+      tempCounter++;
+    }
+    this._packetBuffer.push(data);
+    this._packetCounter = curByteId;
+  // Dropped packet
+  } else {
+    this._processRouteSampleData(data);
+  }
+};
+
+Ganglion.prototype._processRouteSampleData = function(data) {
+  if (parseInt(data[0]) === k.OBCIGanglionByteIdUncompressed) {
+    this._processUncompressedData(data);
+  } else {
+    this._processCompressedData(data);
+  }
+};
+
 /**
  * The default route when a ByteId is not recognized.
  * @param data {Buffer}
@@ -1033,7 +1120,7 @@ Ganglion.prototype._processUncompressedData = function (data) {
   let start = 1;
 
   // Resets the packet counter back to zero
-  this._packetCounter = k.OBCIGanglionByteIdRawData;  // used to find dropped packets
+  this._packetCounter = k.OBCIGanglionByteIdUncompressed;  // used to find dropped packets
   for (let i = 0; i < 4; i++) {
     this._decompressedSamples[0][i] = interpret24bitAsInt32(data, start);  // seed the decompressor
     start += 3;

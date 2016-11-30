@@ -6,24 +6,24 @@ module.exports = {
   getPeripheralLocalNames,
   getPeripheralWithLocalName,
   /**
-   * Converts a special ganglion 19 bit compressed number
+   * Converts a special ganglion 18 bit compressed number
    *  The compressions uses the LSB, bit 1, as the signed bit, instead of using
    *  the MSB. Therefore you must not look to the MSB for a sign extension, one
    *  must look to the LSB, and the same rules applies, if it's a 1, then it's a
    *  negative and if it's 0 then it's a positive number.
    * @param threeByteBuffer {Buffer}
-   *  A 3-byte buffer with only 19 bits of actual data.
+   *  A 3-byte buffer with only 18 bits of actual data.
    * @return {number} A signed integer.
    */
-  convert19bitAsInt32: (threeByteBuffer) => {
+  convert18bitAsInt32: (threeByteBuffer) => {
     let prefix = 0;
 
     if (threeByteBuffer[2] & 0x01 > 0) {
       // console.log('\t\tNegative number')
-      prefix = 0b1111111111111;
+      prefix = 0b11111111111111;
     }
 
-    return (prefix << 19) | (threeByteBuffer[0] << 16) | (threeByteBuffer[1] << 8) | threeByteBuffer[2];
+    return (prefix << 18) | (threeByteBuffer[0] << 16) | (threeByteBuffer[1] << 8) | threeByteBuffer[2];
   },
   /**
    * @description Takes a buffer filled with 3 16 bit integers from an OpenBCI device and converts based on settings
