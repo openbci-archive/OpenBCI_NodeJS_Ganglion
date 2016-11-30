@@ -87,7 +87,16 @@ function exitHandler (options, err) {
   if (options.exit) {
     if (verbose) console.log('exit');
     if (ganglion.isConnected()) {
-      ganglion.disconnect()
+      ganglion.disconnect(true)
+        .then(() => {
+          process.exit();
+        })
+        .catch((err) => {
+          if (verbose) console.log(err);
+          process.exit();
+        });
+    } else {
+      ganglion.searchStop()
         .then(() => {
           process.exit();
         })

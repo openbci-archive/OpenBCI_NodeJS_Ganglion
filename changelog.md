@@ -1,3 +1,8 @@
+# 0.1.2
+
+### Bug Fixes
+* Fix bug where ganglionServer example would hang on scan if no board found.
+
 # 0.1.1
 
 ### New Features
