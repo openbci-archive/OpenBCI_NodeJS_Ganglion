@@ -83,8 +83,6 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
   ganglion.connect(peripheral).catch(errorFunc);
 });
 
-ganglion.searchStart().catch(errorFunc);
-
 function exitHandler (options, err) {
   if (options.cleanup) {
     if (verbose) console.log('clean');
