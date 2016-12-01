@@ -8,6 +8,7 @@
 
 ### Bug Fixes
 * Fix bug where ganglionServer example would hang on scan if no board found.
+* Fix bug where node process would not disconnect on windows.
 
 # 0.1.1
 
