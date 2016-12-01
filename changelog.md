@@ -1,10 +1,8 @@
-# 0.2.0
-
-### New Features
-* Packet resend functionality added
+# 0.1.2
 
 ### Enhancements
 * Compress with 18bits vs 19bits
+* Reworked dropped packet detection and emit of packets.
 
 ### Bug Fixes
 * Fix bug where ganglionServer example would hang on scan if no board found.

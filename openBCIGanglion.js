@@ -112,8 +112,6 @@ function Ganglion (options) {
   this._lastPacket = null;
   this._localName = null;
   this._multiPacketBuffer = null;
-  this._packetBuffer = [];
-  this._requestedPacketResend = [];
   this._packetCounter = k.OBCIGanglionByteIdSampleMax;
   this._peripheral = null;
   this._scanning = false;
@@ -826,9 +824,7 @@ Ganglion.prototype._nobleScanStart = function () {
     });
     // Only look so simblee ble devices and allow duplicates (multiple ganglions)
     // noble.startScanning([k.SimbleeUuidService], true);
-    noble.startScanning([], false).catch((err) => {
-      console.log(err);
-    })
+    noble.startScanning([], false);
   });
 };
 
@@ -906,26 +902,6 @@ Ganglion.prototype._processAccel = function (data) {
  * @private
  */
 Ganglion.prototype._processCompressedData = function (data) {
-  // check for dropped packet
-  // if (parseInt(data[0]) - this._packetCounter !== 1) {
-  //   this.lastDroppedPacket = parseInt(data[0]); // - 2;
-  //   // var retryString = "&"+dropped;
-  //   // var reset = Buffer.from(retryString);
-  //   // _sendCharacteristic.write(reset);
-  //   this._droppedPacketCounter++;
-  //   this.emit(k.OBCIEmitterDroppedPacket, [parseInt(data[0]) - 1]);
-  //   // if (this.options.verbose) console.error('\t>>>PACKET DROP<<<  ' + this._packetCounter + '  ' + this.lastDroppedPacket + ' ' + this._droppedPacketCounter);
-  // }
-
-  // let buffer = data.slice(k.OBCIGanglionPacket.dataStart, k.OBCIGanglionPacket.dataStop);
-  //
-  // if (k.getVersionNumber(process.version) >= 6) {
-  //   // From introduced in node version 6.x.x
-  //   buffer = Buffer.from(buffer);
-  // } else {
-  //   buffer = new Buffer(buffer);
-  // }
-
   // Decompress the buffer into array
   this._decompressSamples(this._decompressDeltas(data.slice(k.OBCIGanglionPacket.dataStart, k.OBCIGanglionPacket.dataStop)));
 
@@ -1016,16 +992,14 @@ Ganglion.prototype._processMultiBytePacketStop = function (data) {
 };
 
 Ganglion.prototype._resetDroppedPacketSystem = function () {
-  this._packetBuffer = [];
-  this._requestedPacketResend = [];
   this._packetCounter = -1;
   this._firstPacket = true;
+  this._droppedPacketCounter = 0;
 };
 
 Ganglion.prototype._droppedPacket = function (droppedPacketNumber) {
-  this.write(new Buffer([k.OBCIMiscResend, droppedPacketNumber]));
   this.emit(k.OBCIEmitterDroppedPacket, [droppedPacketNumber]);
-  this._requestedPacketResend.push(droppedPacketNumber);
+  this._droppedPacketCounter++;
 };
 
 Ganglion.prototype._processProcessSampleData = function(data) {
@@ -1038,36 +1012,10 @@ Ganglion.prototype._processProcessSampleData = function(data) {
     return;
   }
 
-  if (this._requestedPacketResend.length > 0) {
-    let dumped = false;
-    for (let i = 0; i < this._requestedPacketResend.length; i++) {
-      if (this._requestedPacketResend[i] === curByteId) {
-        dumped = true;
-        const tempCurBytId = this._packetCounter;
-        this._processRouteSampleData(data);
-        this._packetCounter = tempCurBytId;
-        this._requestedPacketResend.splice(i, 1);
-        let bufData = this._packetBuffer.shift();
-        while (bufData) {
-          this._processRouteSampleData(bufData);
-          bufData = this._packetBuffer.shift();
-        }
-        return;
-      }
-    }
-    if (!dumped) {
-      this._packetBuffer.push(data);
-      this._packetCounter = curByteId;
-      return;
-    }
-  }
-
   // Wrap around situation
   if (difByteId < 0) {
     if (this._packetCounter === 127) {
-      if (curByteId === 0) {
-        this._processRouteSampleData(data);
-      } else {
+      if (curByteId !== 0) {
         this._droppedPacket(curByteId - 1);
       }
     } else {
@@ -1077,20 +1025,14 @@ Ganglion.prototype._processProcessSampleData = function(data) {
         tempCounter++;
       }
     }
-    this._packetBuffer.push(data);
-    this._packetCounter = curByteId;
   } else if (difByteId > 1) {
     let tempCounter = this._packetCounter + 1;
     while (tempCounter < curByteId) {
       this._droppedPacket(tempCounter);
       tempCounter++;
     }
-    this._packetBuffer.push(data);
-    this._packetCounter = curByteId;
-  // Dropped packet
-  } else {
-    this._processRouteSampleData(data);
   }
+  this._processRouteSampleData(data);
 };
 
 Ganglion.prototype._processRouteSampleData = function(data) {

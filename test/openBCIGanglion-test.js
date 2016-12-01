@@ -182,16 +182,16 @@ describe('#ganglion', function () {
   });
   describe('#_processProcessSampleData', function () {
     let funcSpyCompressedData;
+    let funcSpyDroppedPacket;
     let funcSpyUncompressedData;
-    let funcSpyWrite;
     before(function () {
-      funcSpyWrite = sinon.spy(ganglion, 'write');
       funcSpyCompressedData = sinon.spy(ganglion, '_processCompressedData');
+      funcSpyDroppedPacket = sinon.spy(ganglion, '_droppedPacket');
       funcSpyUncompressedData = sinon.spy(ganglion, '_processUncompressedData');
     });
     beforeEach(function () {
-      funcSpyWrite.reset();
       funcSpyCompressedData.reset();
+      funcSpyDroppedPacket.reset();
       funcSpyUncompressedData.reset();
       ganglion._resetDroppedPacketSystem();
     });
@@ -199,38 +199,25 @@ describe('#ganglion', function () {
       it('should work on uncompressed data', function () {
         ganglion._processProcessSampleData(utils.sampleUncompressedData());
         funcSpyUncompressedData.should.have.been.called;
+        funcSpyDroppedPacket.should.not.have.been.called;
       });
 
       it('should work on compressed data', function () {
         ganglion._processProcessSampleData(utils.sampleCompressedData(1));
         funcSpyCompressedData.should.have.been.called;
+        funcSpyDroppedPacket.should.not.have.been.called;
       });
     });
-    it('should try to resend 0 packet and add packet 1 to buffer', function () {
+    it('should recognize 0 packet dropped', function () {
       // Send the last buffer, set's ganglion._packetCounter
       ganglion._processProcessSampleData(utils.sampleCompressedData(k.OBCIGanglionByteIdSampleMax));
+      funcSpyCompressedData.should.have.been.called;
       const expectedMissedSample = k.OBCIGanglionByteIdUncompressed;
       // Call the function under test with one more then expected
       const nextPacket = utils.sampleCompressedData(expectedMissedSample + 1);
       ganglion._processProcessSampleData(nextPacket);
-      expect(bufferEqual(funcSpyWrite.firstCall.args[0], (new Buffer([k.OBCIMiscResend, expectedMissedSample])))).to.equal(true);
-      expect(ganglion._requestedPacketResend[0]).to.equal(expectedMissedSample);
-      expect(bufferEqual(ganglion._packetBuffer[0], nextPacket)).to.equal(true);
-
-      funcSpyCompressedData.reset();
-      const nextNextPacket = utils.sampleCompressedData(expectedMissedSample + 2);
-      ganglion._processProcessSampleData(nextNextPacket);
-      expect(bufferEqual(ganglion._packetBuffer[1], nextNextPacket)).to.equal(true);
-      funcSpyCompressedData.should.not.have.been.called;
-
-      const missedPacket = utils.sampleUncompressedData();
-      ganglion._processProcessSampleData(missedPacket);
-      expect(bufferEqual(funcSpyUncompressedData.firstCall.args[0], missedPacket)).to.equal(true);
-      expect(bufferEqual(funcSpyCompressedData.firstCall.args[0], nextPacket)).to.equal(true);
-      expect(bufferEqual(funcSpyCompressedData.secondCall.args[0], nextNextPacket)).to.equal(true);
-      expect(ganglion._packetBuffer).to.deep.equal([]);
-      expect(ganglion._requestedPacketResend).to.deep.equal([]);
-
+      funcSpyCompressedData.should.have.been.calledTwice;
+      funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample);
     });
     it('should not find a dropped packet on wrap around', function () {
       ganglion._processProcessSampleData(utils.sampleCompressedData(k.OBCIGanglionByteIdSampleMax - 1));
@@ -242,7 +229,7 @@ describe('#ganglion', function () {
       funcSpyUncompressedData.should.have.been.calledOnce;
       ganglion._processProcessSampleData(utils.sampleCompressedData(k.OBCIGanglionByteIdUncompressed + 1));
       funcSpyCompressedData.should.have.been.calledThrice;
-      funcSpyWrite.should.not.have.been.called;
+      funcSpyDroppedPacket.should.not.have.been.called;
     });
     it('should try to resend packet 127', function () {
       ganglion._processProcessSampleData(utils.sampleCompressedData(k.OBCIGanglionByteIdSampleMax - 1));
@@ -250,9 +237,7 @@ describe('#ganglion', function () {
       // Call the function under test with one more then expected
       const nextPacket = utils.sampleUncompressedData();
       ganglion._processProcessSampleData(nextPacket);
-      expect(bufferEqual(funcSpyWrite.firstCall.args[0], (new Buffer([k.OBCIMiscResend, expectedMissedSample])))).to.equal(true);
-      expect(ganglion._requestedPacketResend[0]).to.equal(expectedMissedSample);
-      expect(bufferEqual(ganglion._packetBuffer[0], nextPacket)).to.equal(true);
+      funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample);
     });
     it('should try to resend packet 126 and 127', function () {
       ganglion._processProcessSampleData(utils.sampleCompressedData(k.OBCIGanglionByteIdSampleMax - 2));
@@ -261,10 +246,8 @@ describe('#ganglion', function () {
       // Call the function under test with one more then expected
       const nextPacket = utils.sampleUncompressedData();
       ganglion._processProcessSampleData(nextPacket);
-      expect(bufferEqual(funcSpyWrite.firstCall.args[0], (new Buffer([k.OBCIMiscResend, expectedMissedSample1])))).to.equal(true);
-      expect(bufferEqual(funcSpyWrite.secondCall.args[0], (new Buffer([k.OBCIMiscResend, expectedMissedSample2])))).to.equal(true);
-      expect(ganglion._requestedPacketResend).to.deep.equal([expectedMissedSample1, expectedMissedSample2]);
-      expect(bufferEqual(ganglion._packetBuffer[0], nextPacket)).to.equal(true);
+      funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample1);
+      funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample2);
     });
     it('should try to resend packet 1 and add packet 2 to buffer', function () {
       // Send the last buffer, set's ganglion._packetCounter
@@ -273,9 +256,7 @@ describe('#ganglion', function () {
       // Call the function under test with one more then expected
       const nextPacket = utils.sampleCompressedData(expectedMissedSample + 1);
       ganglion._processProcessSampleData(nextPacket);
-      expect(bufferEqual(funcSpyWrite.firstCall.args[0], (new Buffer([k.OBCIMiscResend, expectedMissedSample])))).to.equal(true);
-      expect(ganglion._requestedPacketResend[0]).to.equal(expectedMissedSample);
-      expect(bufferEqual(ganglion._packetBuffer[0], nextPacket)).to.equal(true);
+      funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample);
     });
     it('should try to resend packet 1 & 2 and add packet 3 to buffer', function () {
       // Send the last buffer, set's ganglion._packetCounter
@@ -285,10 +266,8 @@ describe('#ganglion', function () {
       // Call the function under test with two more then expected
       const nextPacket = utils.sampleCompressedData(expectedMissedSample2 + 1);
       ganglion._processProcessSampleData(nextPacket);
-      expect(bufferEqual(funcSpyWrite.firstCall.args[0], (new Buffer([k.OBCIMiscResend, expectedMissedSample1])))).to.equal(true);
-      expect(bufferEqual(funcSpyWrite.secondCall.args[0], (new Buffer([k.OBCIMiscResend, expectedMissedSample2])))).to.equal(true);
-      expect(ganglion._requestedPacketResend).to.deep.equal([expectedMissedSample1, expectedMissedSample2]);
-      expect(bufferEqual(ganglion._packetBuffer[0], nextPacket)).to.equal(true);
+      funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample1);
+      funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample2);
     });
   });
   describe('_processBytes', function () {
