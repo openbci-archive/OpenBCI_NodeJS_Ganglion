@@ -42,30 +42,30 @@ var makeLocalName = (num) => {
 };
 
 describe('openBCIGanglionUtils', function () {
-  describe('#convert19bitAsInt32', function () {
+  describe('#convert18bitAsInt32', function () {
     it('converts a small positive number', function () {
       const buf1 = new Buffer([0x00, 0x06, 0x90]); // 0x000690 === 1680
-      const num = utils.convert19bitAsInt32(buf1);
+      const num = utils.convert18bitAsInt32(buf1);
       assert.equal(num, 1680);
     });
     it('converts a small positive number', function () {
       const buf1 = new Buffer([0x00, 0x06, 0x90]); // 0x000690 === 1680
-      const num = utils.convert19bitAsInt32(buf1);
+      const num = utils.convert18bitAsInt32(buf1);
       assert.equal(num, 1680);
     });
     it('converts a large positive number', function () {
       const buf1 = new Buffer([0x02, 0xC0, 0x00]); // 0x02C001 === 180225
-      const num = utils.convert19bitAsInt32(buf1);
+      const num = utils.convert18bitAsInt32(buf1);
       assert.equal(num, 180224);
     });
     it('converts a small negative number', function () {
       const buf1 = new Buffer([0xFF, 0xFF, 0xFF]); // 0xFFFFFF === -1
-      const num = utils.convert19bitAsInt32(buf1);
+      const num = utils.convert18bitAsInt32(buf1);
       num.should.be.approximately(-1, 1);
     });
     it('converts a large negative number', function () {
       const buf1 = new Buffer([0x04, 0xA1, 0x01]); // 0x04A101 === -220927
-      const num = utils.convert19bitAsInt32(buf1);
+      const num = utils.convert18bitAsInt32(buf1);
       num.should.be.approximately(-220927, 1);
     });
   });

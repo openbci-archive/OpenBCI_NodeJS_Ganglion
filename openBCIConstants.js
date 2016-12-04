@@ -46,6 +46,7 @@ const obciStreamStop = 's';
 /** Miscellaneous */
 const obciMiscQueryRegisterSettings = '?';
 const obciMiscSoftReset = 'v';
+const obciMiscResend = 'o';
 
 /** Possible number of channels */
 const obciNumberOfChannelsGanglion = 4;
@@ -130,7 +131,7 @@ const obciEmitterSynced = 'synced';
 
 /** Ganglion */
 const obciGanglionBleSearchTime = 20000; // ms
-const obciGanglionByteIdRawData = 0;
+const obciGanglionByteIdUncompressed = 0;
 const obciGanglionByteIdSampleMax = 127;
 const obciGanglionByteIdSampleMin = 1;
 const obciGanglionByteIdAccel = 128;
@@ -146,9 +147,10 @@ const obciGanglionSamplesPerPacket = 2;
 const obciGanglionPacket = {
   accelStart: 1,
   accelStop: 7,
+  auxByte: 20,
   byteId: 0,
   dataStart: 1,
-  dataStop: 20
+  dataStop: 19
 };
 const obciGanglionMCP3912Gain = 1.0;  // assumed gain setting for MCP3912.  NEEDS TO BE ADJUSTABLE JM
 const obciGanglionMCP3912Vref = 1.2;  // reference voltage for ADC in MCP3912 set in hardware
@@ -305,6 +307,7 @@ module.exports = {
   /** Miscellaneous */
   OBCIMiscQueryRegisterSettings: obciMiscQueryRegisterSettings,
   OBCIMiscSoftReset: obciMiscSoftReset,
+  OBCIMiscResend: obciMiscResend,
   /** Possible number of channels */
   OBCINumberOfChannelsGanglion: obciNumberOfChannelsGanglion,
   /** Possible OpenBCI board types */
@@ -380,7 +383,7 @@ module.exports = {
   OBCIEmitterSynced: obciEmitterSynced,
   /** Ganglion */
   OBCIGanglionBleSearchTime: obciGanglionBleSearchTime,
-  OBCIGanglionByteIdRawData: obciGanglionByteIdRawData,
+  OBCIGanglionByteIdUncompressed: obciGanglionByteIdUncompressed,
   OBCIGanglionByteIdSampleMax: obciGanglionByteIdSampleMax,
   OBCIGanglionByteIdSampleMin: obciGanglionByteIdSampleMin,
   OBCIGanglionByteIdAccel: obciGanglionByteIdAccel,

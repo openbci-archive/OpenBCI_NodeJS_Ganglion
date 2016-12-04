@@ -2,7 +2,7 @@ const Ganglion = require('../../index').Ganglion;
 const k = require('../../openBCIConstants');
 const verbose = true;
 var ganglion = new Ganglion({
-  debug: true,
+  // debug: true,
   sendCounts: true,
   verbose: verbose
 });
@@ -17,17 +17,38 @@ const accel = false;
 ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
   ganglion.searchStop().catch(errorFunc);
 
+  let droppedPacketCounter = 0;
+  let secondCounter = 0;
+  let buf = [];
+  let sizeOfBuf = 0;
   ganglion.on('sample', (sample) => {
     /** Work with sample */
     console.log(sample.sampleNumber);
+    if (sample.sampleNumber === 0) {
+      buf.push(droppedPacketCounter);
+      sizeOfBuf++;
+      droppedPacketCounter = 0;
+      if (sizeOfBuf >= 60) {
+        var sum = 0;
+        for (let i = 0; i < buf.length; i++) {
+          sum += parseInt(buf[i], 10);
+        }
+        const percentDropped = sum / 6000 * 100;
+        console.log(`dropped packet rate: ${sum} - percent dropped: %${percentDropped.toFixed(2)}`);
+        buf.shift();
+      } else {
+        console.log(`time till average rate starts ${60 - sizeOfBuf}`);
+      }
+    }
   });
 
   ganglion.on('droppedPacket', (data) => {
     console.log('droppedPacket:', data);
+    droppedPacketCounter++;
   });
 
   ganglion.on('message', (message) => {
-    console.log('message: ', message.toString());
+    // console.log('message: ', message.toString());
   });
 
   let lastVal = 0;
@@ -62,50 +83,38 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
   ganglion.connect(peripheral).catch(errorFunc);
 });
 
-ganglion.searchStart().catch(errorFunc);
-
 function exitHandler (options, err) {
   if (options.cleanup) {
     if (verbose) console.log('clean');
     // console.log(connectedPeripheral)
-    if (impedance) {
-      ganglion.impedanceStop();
-    }
-    if (ganglion.isSearching()) {
-      ganglion.searchStop();
-    }
-    if (accel) {
-      ganglion.accelStop()
-        .then(() => {
-          return ganglion.streamStop();
-        });
-    }
-    ganglion.manualDisconnect = true;
-    ganglion.disconnect();
+
   }
   if (err) console.log(err.stack);
   if (options.exit) {
     if (verbose) console.log('exit');
-    if (ganglion.isConnected()) {
-      ganglion.disconnect(true)
-        .then(() => {
-          process.exit();
-        })
-        .catch((err) => {
-          if (verbose) console.log(err);
-          process.exit();
-        });
-    } else {
-      ganglion.searchStop()
-        .then(() => {
-          process.exit();
-        })
-        .catch((err) => {
-          if (verbose) console.log(err);
-          process.exit();
-        });
+    if (impedance) {
+      ganglion.impedanceStop().catch(console.log);
     }
+    if (ganglion.isSearching()) {
+      ganglion.searchStop().catch(console.log);
+    }
+    if (accel) {
+      ganglion.accelStop().catch(console.log);
+    }
+    ganglion.manualDisconnect = true;
+    ganglion.disconnect(true).catch(console.log);
   }
+}
+
+if (process.platform === "win32") {
+  const rl = require("readline").createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  rl.on("SIGINT", function () {
+    process.emit("SIGINT");
+  });
 }
 
 // do something when app is closing
