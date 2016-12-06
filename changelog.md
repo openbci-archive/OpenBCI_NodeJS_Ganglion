@@ -1,4 +1,4 @@
-# 0.1.2
+# 0.2.0
 
 ### Enhancements
 * Compress with 18bits vs 19bits
