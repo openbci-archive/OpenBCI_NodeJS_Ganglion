@@ -176,6 +176,9 @@ describe('OpenBCIConstants', function () {
     it('softly resets the board', function () {
       assert.equal('v', k.OBCIMiscSoftReset);
     });
+    it('resend packet', function () {
+      assert.equal('o', k.OBCIMiscResend);
+    });
   });
   describe('should return correct channel off command for number', function () {
     it('Channel 1', function () {
@@ -301,7 +304,8 @@ describe('OpenBCIConstants', function () {
     it('packet positions', function () {
       assert.equal(0, k.OBCIGanglionPacket.byteId);
       assert.equal(1, k.OBCIGanglionPacket.dataStart);
-      assert.equal(20, k.OBCIGanglionPacket.dataStop);
+      assert.equal(19, k.OBCIGanglionPacket.dataStop);
+      assert.equal(20, k.OBCIGanglionPacket.auxByte);
     });
   });
   describe('Commands', function () {
@@ -320,7 +324,7 @@ describe('OpenBCIConstants', function () {
   });
   describe('Byte Id', function () {
     it('Raw data', function () {
-      assert.equal(0, k.OBCIGanglionByteIdRawData);
+      assert.equal(0, k.OBCIGanglionByteIdUncompressed);
     });
     it('Sample maximum', function () {
       assert.equal(127, k.OBCIGanglionByteIdSampleMax);
