@@ -1,3 +1,15 @@
+# 0.3.0
+
+### New Features
+* Get accelerometer data from the ganglion! (Previous did not work while streaming)
+
+### Breaking Changes
+* Major change in how bytes are parse based on byte ID.
+
+### Enhancements
+* Refactor file names for clarity
+* Removed dependency `underscore`
+
 # 0.2.0
 
 ### Enhancements

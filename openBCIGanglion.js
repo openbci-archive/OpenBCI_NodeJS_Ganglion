@@ -4,7 +4,7 @@ const _ = require('lodash');
 const noble = require('noble');
 const util = require('util');
 // Local imports
-const utils = require('./openBCIGanglionUtils');
+const ganglionSample = require('./openBCIGanglionSample');
 const k = require('./openBCIConstants');
 const openBCIUtils = require('./openBCIUtils');
 const clone = require('clone');
@@ -104,6 +104,7 @@ function Ganglion (options) {
   this.options = clone(opts);
 
   /** Private Properties (keep alphabetical) */
+  this._accelArray = [0, 0, 0];
   this._connected = false;
   this._decompressedSamples = new Array(3);
   this._droppedPacketCounter = 0;
@@ -112,7 +113,7 @@ function Ganglion (options) {
   this._lastPacket = null;
   this._localName = null;
   this._multiPacketBuffer = null;
-  this._packetCounter = k.OBCIGanglionByteIdSampleMax;
+  this._packetCounter = k.OBCIGanglionByteId18Bit.max;
   this._peripheral = null;
   this._scanning = false;
   this._sendCharacteristic = null;
@@ -199,7 +200,7 @@ Ganglion.prototype.channelOn = function (channelNumber) {
 Ganglion.prototype.connect = function (id) {
   return new Promise((resolve, reject) => {
     if (_.isString(id)) {
-      utils.getPeripheralWithLocalName(this.ganglionPeripheralArray, id)
+      ganglionSample.getPeripheralWithLocalName(this.ganglionPeripheralArray, id)
         .then((p) => {
           this._nobleConnect(p);
         })
@@ -281,13 +282,7 @@ Ganglion.prototype.getMutliPacketBuffer = function () {
  * @return {global.Promise|Promise}
  */
 Ganglion.prototype.impedanceStart = function () {
-  return new Promise((resolve, reject) => {
-    this.write(k.OBCIGanglionImpedanceStart)
-      .then(() => {
-        resolve();
-      })
-      .catch(reject);
-  });
+  return this.write(k.OBCIGanglionImpedanceStart);
 };
 
 /**
@@ -295,13 +290,7 @@ Ganglion.prototype.impedanceStart = function () {
  * @return {global.Promise|Promise}
  */
 Ganglion.prototype.impedanceStop = function () {
-  return new Promise((resolve, reject) => {
-    this.write(k.OBCIGanglionImpedanceStop)
-      .then(() => {
-        resolve();
-      })
-      .catch(reject);
-  });
+  return this.write(k.OBCIGanglionImpedanceStop);
 };
 
 /**
@@ -527,97 +516,6 @@ Ganglion.prototype._buildSample = function (sampleNumber, rawData) {
 };
 
 /**
- * Called to when a compressed packet is received.
- * @param buffer {Buffer} Just the data portion of the sample. So 18 bytes.
- * @return {Array} - An array of deltas of shape 2x4 (2 samples per packet
- *  and 4 channels per sample.)
- * @private
- */
-Ganglion.prototype._decompressDeltas = function (buffer) {
-  let D = new Array(k.OBCIGanglionSamplesPerPacket); // 2
-  D[0] = [0, 0, 0, 0];
-  D[1] = [0, 0, 0, 0];
-
-  let receivedDeltas = [];
-  for (let i = 0; i < k.OBCIGanglionSamplesPerPacket; i++) {
-    receivedDeltas.push([0, 0, 0, 0]);
-  }
-
-  let miniBuf;
-
-  // Sample 1 - Channel 1
-  miniBuf = new Buffer(
-    [
-      (buffer[0] >> 6),
-      ((buffer[0] & 0x3F) << 2) | (buffer[1] >> 6),
-      ((buffer[1] & 0x3F) << 2) | (buffer[2] >> 6)
-    ]
-  );
-  receivedDeltas[0][0] = utils.convert18bitAsInt32(miniBuf);
-
-  // Sample 1 - Channel 2
-  miniBuf = new Buffer(
-    [
-      (buffer[2] & 0x3F) >> 4,
-      (buffer[2] << 4) | (buffer[3] >> 4),
-      (buffer[3] << 4) | (buffer[4] >> 4)
-    ]);
-  // miniBuf = new Buffer([(buffer[2] & 0x1F), buffer[3], buffer[4] >> 2]);
-  receivedDeltas[0][1] = utils.convert18bitAsInt32(miniBuf);
-
-  // Sample 1 - Channel 3
-  miniBuf = new Buffer(
-    [
-      (buffer[4] & 0x0F) >> 2,
-      (buffer[4] << 6) | (buffer[5] >> 2),
-      (buffer[5] << 6) | (buffer[6] >> 2)
-    ]);
-  receivedDeltas[0][2] = utils.convert18bitAsInt32(miniBuf);
-
-  // Sample 1 - Channel 4
-  miniBuf = new Buffer(
-    [
-      (buffer[6] & 0x03),
-      buffer[7],
-      buffer[8]
-    ]);
-  receivedDeltas[0][3] = utils.convert18bitAsInt32(miniBuf);
-
-  // Sample 2 - Channel 1
-  miniBuf = new Buffer(
-    [
-      (buffer[9] >> 6),
-      ((buffer[9] & 0x3F) << 2) | (buffer[10] >> 6),
-      ((buffer[10] & 0x3F) << 2) | (buffer[11] >> 6)
-    ]);
-  receivedDeltas[1][0] = utils.convert18bitAsInt32(miniBuf);
-
-  // Sample 2 - Channel 2
-  miniBuf = new Buffer(
-    [
-      (buffer[11] & 0x3F) >> 4,
-      (buffer[11] << 4) | (buffer[12] >> 4),
-      (buffer[12] << 4) | (buffer[13] >> 4)
-    ]);
-  receivedDeltas[1][1] = utils.convert18bitAsInt32(miniBuf);
-
-  // Sample 2 - Channel 3
-  miniBuf = new Buffer(
-    [
-      (buffer[13] & 0x0F) >> 2,
-      (buffer[13] << 6) | (buffer[14] >> 2),
-      (buffer[14] << 6) | (buffer[15] >> 2)
-    ]);
-  receivedDeltas[1][2] = utils.convert18bitAsInt32(miniBuf);
-
-  // Sample 2 - Channel 4
-  miniBuf = new Buffer([(buffer[15] & 0x03), buffer[16], buffer[17]]);
-  receivedDeltas[1][3] = utils.convert18bitAsInt32(miniBuf);
-
-  return receivedDeltas;
-};
-
-/**
  * Utilize `receivedDeltas` to get actual count values.
  * @param receivedDeltas {Array} - An array of deltas
  *  of shape 2x4 (2 samples per packet and 4 channels per sample.)
@@ -790,7 +688,7 @@ Ganglion.prototype._nobleInit = function () {
 Ganglion.prototype._nobleOnDeviceDiscoveredCallback = function (peripheral) {
   // if(this.options.verbose) console.log(peripheral.advertisement);
   this.peripheralArray.push(peripheral);
-  if (utils.isPeripheralGanglion(peripheral)) {
+  if (k.isPeripheralGanglion(peripheral)) {
     if (this.options.verbose) console.log('Found ganglion!');
     if (_.isUndefined(_.find(this.ganglionPeripheralArray,
         (p) => {
@@ -857,13 +755,10 @@ Ganglion.prototype._processBytes = function (data) {
   if (this.options.debug) openBCIUtils.debugBytes('<<', data);
   this.lastPacket = data;
   let byteId = parseInt(data[0]);
-  if (byteId <= k.OBCIGanglionByteIdSampleMax) {
+  if (byteId <= k.OBCIGanglionByteId19Bit.max) {
     this._processProcessSampleData(data);
   } else {
     switch (byteId) {
-      case k.OBCIGanglionByteIdAccel:
-        this._processAccel(data);
-        break;
       case k.OBCIGanglionByteIdMultiPacket:
         this._processMultiBytePacket(data);
         break;
@@ -884,34 +779,47 @@ Ganglion.prototype._processBytes = function (data) {
 };
 
 /**
- * Process an accel packet of data.
- * @param data {Buffer}
- *  Data packet buffer from noble.
- * @private
- */
-Ganglion.prototype._processAccel = function (data) {
-  if (this.options.debug) openBCIUtils.debugBytes('Accel <<< ', data);
-  const accelData = utils.getDataArrayAccel(data.slice(k.OBCIGanglionPacket.accelStart, k.OBCIGanglionPacket.accelStop), this.options.sendCounts);
-  this.emit(k.OBCIEmitterAccelerometer, accelData);
-};
-
-/**
  * Process an compressed packet of data.
  * @param data {Buffer}
  *  Data packet buffer from noble.
  * @private
  */
 Ganglion.prototype._processCompressedData = function (data) {
-  // Decompress the buffer into array
-  this._decompressSamples(this._decompressDeltas(data.slice(k.OBCIGanglionPacket.dataStart, k.OBCIGanglionPacket.dataStop)));
-
+  // Save the packet counter
   this._packetCounter = parseInt(data[0]);
 
-  const sample1 = this._buildSample(this._packetCounter * 2 - 1, this._decompressedSamples[1]);
-  this.emit(k.OBCIEmitterSample, sample1);
+  // Decompress the buffer into array
+  if (this._packetCounter <= k.OBCIGanglionByteId18Bit.max) {
+    this._decompressSamples(ganglionSample.decompressDeltas18Bit(data.slice(k.OBCIGanglionPacket18Bit.dataStart, k.OBCIGanglionPacket18Bit.dataStop)));
+    switch (this._packetCounter % 10) {
+      case k.OBCIGanglionAccelAxisX:
+        this._accelArray[0] = this.options.sendCounts ? data.readInt8(k.OBCIGanglionPacket18Bit.auxByte - 1) : data.readInt8(k.OBCIGanglionPacket18Bit.auxByte - 1) * k.OBCIGanglionAccelScaleFactor;
+        break;
+      case k.OBCIGanglionAccelAxisY:
+        this._accelArray[1] = this.options.sendCounts ? data.readInt8(k.OBCIGanglionPacket18Bit.auxByte - 1) : data.readInt8(k.OBCIGanglionPacket18Bit.auxByte - 1) * k.OBCIGanglionAccelScaleFactor;
+        break;
+      case k.OBCIGanglionAccelAxisZ:
+        this._accelArray[2] = this.options.sendCounts ? data.readInt8(k.OBCIGanglionPacket18Bit.auxByte - 1) : data.readInt8(k.OBCIGanglionPacket18Bit.auxByte - 1) * k.OBCIGanglionAccelScaleFactor;
+        this.emit(k.OBCIEmitterAccelerometer, this._accelArray);
+        break;
+      default:
+        break;
+    }
+    const sample1 = this._buildSample(this._packetCounter * 2 - 1, this._decompressedSamples[1]);
+    this.emit(k.OBCIEmitterSample, sample1);
 
-  const sample2 = this._buildSample(this._packetCounter * 2, this._decompressedSamples[2]);
-  this.emit(k.OBCIEmitterSample, sample2);
+    const sample2 = this._buildSample(this._packetCounter * 2, this._decompressedSamples[2]);
+    this.emit(k.OBCIEmitterSample, sample2);
+
+  } else {
+    this._decompressSamples(ganglionSample.decompressDeltas19Bit(data.slice(k.OBCIGanglionPacket19Bit.dataStart, k.OBCIGanglionPacket19Bit.dataStop)));
+
+    const sample1 = this._buildSample((this._packetCounter - 100) * 2 - 1, this._decompressedSamples[1]);
+    this.emit(k.OBCIEmitterSample, sample1);
+
+    const sample2 = this._buildSample((this._packetCounter - 100) * 2, this._decompressedSamples[2]);
+    this.emit(k.OBCIEmitterSample, sample2);
+  }
 
   // Rotate the 0 position for next time
   for (let i = 0; i < k.OBCINumberOfChannelsGanglion; i++) {
@@ -973,9 +881,9 @@ Ganglion.prototype._processImpedanceData = function (data) {
  */
 Ganglion.prototype._processMultiBytePacket = function (data) {
   if (this._multiPacketBuffer) {
-    this._multiPacketBuffer = Buffer.concat([this._multiPacketBuffer, data.slice(k.OBCIGanglionPacket.dataStart, k.OBCIGanglionPacket.dataStop)]);
+    this._multiPacketBuffer = Buffer.concat([this._multiPacketBuffer, data.slice(k.OBCIGanglionPacket19Bit.dataStart, k.OBCIGanglionPacket19Bit.dataStop)]);
   } else {
-    this._multiPacketBuffer = data.slice(k.OBCIGanglionPacket.dataStart, k.OBCIGanglionPacket.dataStop);
+    this._multiPacketBuffer = data.slice(k.OBCIGanglionPacket19Bit.dataStart, k.OBCIGanglionPacket19Bit.dataStop);
   }
 };
 
@@ -1002,6 +910,11 @@ Ganglion.prototype._droppedPacket = function (droppedPacketNumber) {
   this._droppedPacketCounter++;
 };
 
+/**
+ * Checks for dropped packets
+ * @param data {Buffer}
+ * @private
+ */
 Ganglion.prototype._processProcessSampleData = function(data) {
   const curByteId = parseInt(data[0]);
   const difByteId = curByteId - this._packetCounter;
@@ -1014,22 +927,39 @@ Ganglion.prototype._processProcessSampleData = function(data) {
 
   // Wrap around situation
   if (difByteId < 0) {
-    if (this._packetCounter === 127) {
-      if (curByteId !== 0) {
+    if (this._packetCounter <= k.OBCIGanglionByteId18Bit.max) {
+      if (this._packetCounter === k.OBCIGanglionByteId18Bit.max) {
+        if (curByteId !== k.OBCIGanglionByteIdUncompressed) {
+          this._droppedPacket(curByteId - 1);
+        }
+      } else {
+        let tempCounter = this._packetCounter + 1;
+        while (tempCounter <= k.OBCIGanglionByteId18Bit.max) {
+          this._droppedPacket(tempCounter);
+          tempCounter++;
+        }
+      }
+    } else if (this._packetCounter === k.OBCIGanglionByteId19Bit.max) {
+      if (curByteId !== k.OBCIGanglionByteIdUncompressed) {
         this._droppedPacket(curByteId - 1);
       }
     } else {
       let tempCounter = this._packetCounter + 1;
-      while (tempCounter <= 127) {
+      while (tempCounter <= k.OBCIGanglionByteId19Bit.max) {
         this._droppedPacket(tempCounter);
         tempCounter++;
       }
     }
   } else if (difByteId > 1) {
-    let tempCounter = this._packetCounter + 1;
-    while (tempCounter < curByteId) {
-      this._droppedPacket(tempCounter);
-      tempCounter++;
+    if (this._packetCounter === k.OBCIGanglionByteIdUncompressed && curByteId === k.OBCIGanglionByteId19Bit.min) {
+      this._processRouteSampleData(data);
+      return;
+    } else {
+      let tempCounter = this._packetCounter + 1;
+      while (tempCounter < curByteId) {
+        this._droppedPacket(tempCounter);
+        tempCounter++;
+      }
     }
   }
   this._processRouteSampleData(data);
