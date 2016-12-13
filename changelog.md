@@ -1,3 +1,8 @@
+# 0.3.1
+
+### Bug Fixes
+* Fix bug with connect
+
 # 0.3.0
 
 ### New Features

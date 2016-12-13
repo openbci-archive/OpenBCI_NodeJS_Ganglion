@@ -200,7 +200,7 @@ Ganglion.prototype.channelOn = function (channelNumber) {
 Ganglion.prototype.connect = function (id) {
   return new Promise((resolve, reject) => {
     if (_.isString(id)) {
-      ganglionSample.getPeripheralWithLocalName(this.ganglionPeripheralArray, id)
+      k.getPeripheralWithLocalName(this.ganglionPeripheralArray, id)
         .then((p) => {
           this._nobleConnect(p);
         })
