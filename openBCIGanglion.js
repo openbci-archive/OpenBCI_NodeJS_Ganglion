@@ -251,6 +251,7 @@ Ganglion.prototype.disconnect = function (stopStreaming) {
             if (err) {
               reject(err);
             } else {
+              this._connected = false;
               resolve();
             }
           });

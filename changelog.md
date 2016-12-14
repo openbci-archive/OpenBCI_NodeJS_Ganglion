@@ -1,3 +1,8 @@
+# 0.3.2
+
+### Bug Fixes
+* Fix bug where disconnect did not set private property `_connected` to false.
+
 # 0.3.1
 
 ### Bug Fixes
