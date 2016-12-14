@@ -1,9 +1,11 @@
+'use strict';
 /**
 * Created by ajk on 12/16/15.
 * Purpose: This file folds all the constants for the
 *     OpenBCI Board
 */
-'use strict';
+const _ = require('lodash');
+
 /** Turning channels off */
 const obciChannelOff1 = '1';
 const obciChannelOff2 = '2';
@@ -129,28 +131,44 @@ const obciEmitterReady = 'ready';
 const obciEmitterSample = 'sample';
 const obciEmitterSynced = 'synced';
 
+/** Accel packets */
+const obciGanglionAccelAxisX = 1;
+const obciGanglionAccelAxisY = 2;
+const obciGanglionAccelAxisZ = 3;
+
+/** Accel scale factor */
+const obciGanglionAccelScaleFactor = 0.032; // mG per count
+
 /** Ganglion */
 const obciGanglionBleSearchTime = 20000; // ms
 const obciGanglionByteIdUncompressed = 0;
-const obciGanglionByteIdSampleMax = 127;
-const obciGanglionByteIdSampleMin = 1;
-const obciGanglionByteIdAccel = 128;
-const obciGanglionByteIdImpedanceChannel1 = 129;
-const obciGanglionByteIdImpedanceChannel2 = 130;
-const obciGanglionByteIdImpedanceChannel3 = 131;
-const obciGanglionByteIdImpedanceChannel4 = 132;
-const obciGanglionByteIdImpedanceChannelReference = 133;
-const obciGanglionByteIdMultiPacket = 134;
-const obciGanglionByteIdMultiPacketStop = 135;
+const obciGanglionByteId18Bit = {
+  max: 100,
+  min: 1
+};
+const obciGanglionByteId19Bit = {
+  max: 200,
+  min: 101
+};
+const obciGanglionByteIdImpedanceChannel1 = 201;
+const obciGanglionByteIdImpedanceChannel2 = 202;
+const obciGanglionByteIdImpedanceChannel3 = 203;
+const obciGanglionByteIdImpedanceChannel4 = 204;
+const obciGanglionByteIdImpedanceChannelReference = 205;
+const obciGanglionByteIdMultiPacket = 206;
+const obciGanglionByteIdMultiPacketStop = 207;
 const obciGanglionPacketSize = 20;
 const obciGanglionSamplesPerPacket = 2;
-const obciGanglionPacket = {
-  accelStart: 1,
-  accelStop: 7,
+const obciGanglionPacket18Bit = {
   auxByte: 20,
   byteId: 0,
   dataStart: 1,
   dataStop: 19
+};
+const obciGanglionPacket19Bit = {
+  byteId: 0,
+  dataStart: 1,
+  dataStop: 20
 };
 const obciGanglionMCP3912Gain = 1.0;  // assumed gain setting for MCP3912.  NEEDS TO BE ADJUSTABLE JM
 const obciGanglionMCP3912Vref = 1.2;  // reference voltage for ADC in MCP3912 set in hardware
@@ -317,6 +335,8 @@ module.exports = {
   /** Accel enable/disable commands */
   OBCIAccelStart: obciAccelStart,
   OBCIAccelStop: obciAccelStop,
+  /** Accel scale factor */
+  OBCIGanglionAccelScaleFactor: obciGanglionAccelScaleFactor,
   /** Errors */
   OBCIEmitterAccelerometer: obciEmitterAccelerometer,
   OBCIErrorNobleAlreadyScanning: errorNobleAlreadyScanning,
@@ -367,7 +387,6 @@ module.exports = {
   /** Simulator Board Configurations */
   OBCISimulatorRawAux: obciSimulatorRawAux,
   OBCISimulatorStandard: obciSimulatorStandard,
-  getVersionNumber,
   /** Emitters */
   OBCIEmitterBlePoweredUp: obciEmitterBlePoweredUp,
   OBCIEmitterClose: obciEmitterClose,
@@ -381,12 +400,15 @@ module.exports = {
   OBCIEmitterReady: obciEmitterReady,
   OBCIEmitterSample: obciEmitterSample,
   OBCIEmitterSynced: obciEmitterSynced,
+  /** Accel packets */
+  OBCIGanglionAccelAxisX: obciGanglionAccelAxisX,
+  OBCIGanglionAccelAxisY: obciGanglionAccelAxisY,
+  OBCIGanglionAccelAxisZ: obciGanglionAccelAxisZ,
   /** Ganglion */
   OBCIGanglionBleSearchTime: obciGanglionBleSearchTime,
   OBCIGanglionByteIdUncompressed: obciGanglionByteIdUncompressed,
-  OBCIGanglionByteIdSampleMax: obciGanglionByteIdSampleMax,
-  OBCIGanglionByteIdSampleMin: obciGanglionByteIdSampleMin,
-  OBCIGanglionByteIdAccel: obciGanglionByteIdAccel,
+  OBCIGanglionByteId18Bit: obciGanglionByteId18Bit,
+  OBCIGanglionByteId19Bit: obciGanglionByteId19Bit,
   OBCIGanglionByteIdImpedanceChannel1: obciGanglionByteIdImpedanceChannel1,
   OBCIGanglionByteIdImpedanceChannel2: obciGanglionByteIdImpedanceChannel2,
   OBCIGanglionByteIdImpedanceChannel3: obciGanglionByteIdImpedanceChannel3,
@@ -397,7 +419,8 @@ module.exports = {
   OBCIGanglionMCP3912Gain: obciGanglionMCP3912Gain,  // assumed gain setting for MCP3912.  NEEDS TO BE ADJUSTABLE JM
   OBCIGanglionMCP3912Vref: obciGanglionMCP3912Vref,  // reference voltage for ADC in MCP3912 set in hardware
   OBCIGanglionPacketSize: obciGanglionPacketSize,
-  OBCIGanglionPacket: obciGanglionPacket,
+  OBCIGanglionPacket18Bit: obciGanglionPacket18Bit,
+  OBCIGanglionPacket19Bit: obciGanglionPacket19Bit,
   OBCIGanglionPrefix: obciGanglionPrefix,
   OBCIGanglionSamplesPerPacket: obciGanglionSamplesPerPacket,
   OBCIGanglionSyntheticDataEnable: obciGanglionSyntheticDataEnable,
@@ -421,8 +444,48 @@ module.exports = {
   OBCINobleEmitterScanStart: obciNobleEmitterScanStart,
   OBCINobleEmitterScanStop: obciNobleEmitterScanStop,
   OBCINobleEmitterStateChange: obciNobleEmitterStateChange,
-  OBCINobleStatePoweredOn: obciNobleStatePoweredOn
+  OBCINobleStatePoweredOn: obciNobleStatePoweredOn,
+  getPeripheralLocalNames,
+  getPeripheralWithLocalName,
+  getVersionNumber,
+  isPeripheralGanglion
 };
+
+/**
+ * @description Get a list of local names from an array of peripherals
+ */
+function getPeripheralLocalNames (pArray) {
+  return new Promise((resolve, reject) => {
+    var list = [];
+    _.forEach(pArray, (perif) => {
+      list.push(perif.advertisement.localName);
+    });
+    if (list.length > 0) {
+      return resolve(list);
+    } else {
+      return reject(`No peripherals discovered with prefix equal to ${k.OBCIGanglionPrefix}`);
+    }
+  });
+}
+
+/**
+ * @description Get a peripheral with a local name
+ * @param `pArray` {Array} - Array of peripherals
+ * @param `localName` {String} - The local name of the BLE device.
+ */
+function getPeripheralWithLocalName (pArray, localName) {
+  return new Promise((resolve, reject) => {
+    if (typeof (pArray) !== 'object') return reject(`pArray must be of type Object`);
+    _.forEach(pArray, (perif) => {
+      if (perif.advertisement.hasOwnProperty('localName')) {
+        if (perif.advertisement.localName === localName) {
+          return resolve(perif);
+        }
+      }
+    });
+    return reject(`No peripheral found with localName: ${localName}`);
+  });
+}
 
 /**
 * @description This function is used to extract the major version from a github
@@ -431,4 +494,23 @@ module.exports = {
 */
 function getVersionNumber (versionStr) {
   return Number(versionStr[1]);
+}
+
+/**
+ * @description Very safely checks to see if the noble peripheral is a
+ *  ganglion by way of checking the local name property.
+ */
+function isPeripheralGanglion (peripheral) {
+  if (peripheral) {
+    if (peripheral.hasOwnProperty('advertisement')) {
+      if (peripheral.advertisement !== null && peripheral.advertisement.hasOwnProperty('localName')) {
+        if (peripheral.advertisement.localName !== undefined && peripheral.advertisement.localName !== null) {
+          if (peripheral.advertisement.localName.indexOf(obciGanglionPrefix) > -1) {
+            return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
 }

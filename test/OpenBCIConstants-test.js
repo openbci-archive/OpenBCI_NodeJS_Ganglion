@@ -11,6 +11,35 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 const chaiAsPromised = require('chai-as-promised');
 chai.use(chaiAsPromised);
 
+var getListOfPeripheralsOfSize = (perifsToMake) => {
+  perifsToMake = perifsToMake || 3;
+
+  let output = [];
+
+  for (var i = 0; i < perifsToMake; i++) {
+    output.push({
+      advertisement: {
+        localName: makeLocalName(i),
+        txPowerLevel: undefined,
+        manufacturerData: undefined,
+        serviceData: [],
+        serviceUuids: []
+      }
+    });
+  }
+  return output;
+};
+
+var makeLocalName = (num) => {
+  let localName = `${k.OBCIGanglionPrefix}-00`;
+  if (num < 10) {
+    localName = `${localName}0${num}`;
+  } else {
+    localName = `${localName}${num}`;
+  }
+  return localName;
+};
+
 describe('OpenBCIConstants', function () {
   // afterEach(() => bluebirdChecks.noPendingPromises());
   describe('Turning Channels Off', function () {
@@ -169,6 +198,17 @@ describe('OpenBCIConstants', function () {
       assert.equal('N', k.OBCIAccelStop);
     });
   });
+  describe('Accel packet numbers', function () {
+    it('X axis', function () {
+      assert.equal(1, k.OBCIGanglionAccelAxisX);
+    });
+    it('Y axis', function () {
+      assert.equal(2, k.OBCIGanglionAccelAxisY);
+    });
+    it('Z axis', function () {
+      assert.equal(3, k.OBCIGanglionAccelAxisZ);
+    });
+  });
   describe('Miscellaneous', function () {
     it('queries register settings', function () {
       assert.equal('?', k.OBCIMiscQueryRegisterSettings);
@@ -293,6 +333,9 @@ describe('OpenBCIConstants', function () {
       assert.equal('Ganglion', k.OBCIGanglionPrefix);
     });
     it('Ganglion ble search time', function () {
+      assert.equal(0.032, k.OBCIGanglionAccelScaleFactor);
+    });
+    it('Ganglion ble search time', function () {
       assert.equal(20000, k.OBCIGanglionBleSearchTime);
     });
     it('packet size', function () {
@@ -301,11 +344,20 @@ describe('OpenBCIConstants', function () {
     it('samples per packet', function () {
       assert.equal(2, k.OBCIGanglionSamplesPerPacket);
     });
-    it('packet positions', function () {
-      assert.equal(0, k.OBCIGanglionPacket.byteId);
-      assert.equal(1, k.OBCIGanglionPacket.dataStart);
-      assert.equal(19, k.OBCIGanglionPacket.dataStop);
-      assert.equal(20, k.OBCIGanglionPacket.auxByte);
+    it('packet positions 18 bit', function () {
+      expect(k.OBCIGanglionPacket18Bit).to.deep.equal({
+        auxByte: 20,
+        byteId: 0,
+        dataStart: 1,
+        dataStop: 19
+      });
+    });
+    it('packet positions 19 bit', function () {
+      expect(k.OBCIGanglionPacket19Bit).to.deep.equal({
+        byteId: 0,
+        dataStart: 1,
+        dataStop: 20
+      });
     });
   });
   describe('Commands', function () {
@@ -323,38 +375,41 @@ describe('OpenBCIConstants', function () {
     });
   });
   describe('Byte Id', function () {
-    it('Raw data', function () {
+    it('Uncompressed', function () {
       assert.equal(0, k.OBCIGanglionByteIdUncompressed);
     });
-    it('Sample maximum', function () {
-      assert.equal(127, k.OBCIGanglionByteIdSampleMax);
+    it('should have correct values for 18 bit', function () {
+      expect(k.OBCIGanglionByteId18Bit).to.deep.equal({
+        max: 100,
+        min: 1
+      })
     });
-    it('Sample minimum', function () {
-      assert.equal(1, k.OBCIGanglionByteIdSampleMin);
-    });
-    it('Accel', function () {
-      assert.equal(128, k.OBCIGanglionByteIdAccel);
+    it('should have correct values for 18 bit', function () {
+      expect(k.OBCIGanglionByteId19Bit).to.deep.equal({
+        max: 200,
+        min: 101
+      })
     });
     it('Impedance channel 1', function () {
-      assert.equal(129, k.OBCIGanglionByteIdImpedanceChannel1);
+      assert.equal(201, k.OBCIGanglionByteIdImpedanceChannel1);
     });
     it('Impedance channel 2', function () {
-      assert.equal(130, k.OBCIGanglionByteIdImpedanceChannel2);
+      assert.equal(202, k.OBCIGanglionByteIdImpedanceChannel2);
     });
     it('Impedance channel 3', function () {
-      assert.equal(131, k.OBCIGanglionByteIdImpedanceChannel3);
+      assert.equal(203, k.OBCIGanglionByteIdImpedanceChannel3);
     });
     it('Impedance channel 4', function () {
-      assert.equal(132, k.OBCIGanglionByteIdImpedanceChannel4);
+      assert.equal(204, k.OBCIGanglionByteIdImpedanceChannel4);
     });
     it('Impedance channel reference', function () {
-      assert.equal(133, k.OBCIGanglionByteIdImpedanceChannelReference);
+      assert.equal(205, k.OBCIGanglionByteIdImpedanceChannelReference);
     });
     it('Multi packet', function () {
-      assert.equal(134, k.OBCIGanglionByteIdMultiPacket);
+      assert.equal(206, k.OBCIGanglionByteIdMultiPacket);
     });
     it('Multi packet stop', function () {
-      assert.equal(135, k.OBCIGanglionByteIdMultiPacketStop);
+      assert.equal(207, k.OBCIGanglionByteIdMultiPacketStop);
     });
   });
   describe('simblee', function () {
@@ -404,6 +459,73 @@ describe('OpenBCIConstants', function () {
     });
     it('State Powered On', function () {
       assert.equal('poweredOn', k.OBCINobleStatePoweredOn);
+    });
+  });
+  describe('#getPeripheralLocalNames', function () {
+    it('should resolve a list of localNames from an array of peripherals', function (done) {
+      let numPerifs = 3;
+      let perifs = getListOfPeripheralsOfSize(numPerifs);
+      k.getPeripheralLocalNames(perifs).then(list => {
+        expect(list.length).to.equal(numPerifs);
+        for (var i = 0; i < list.length; i++) {
+          expect(list[i]).to.equal(makeLocalName(i));
+        }
+        done();
+      }).catch(done);
+    });
+    it('should reject if array is empty', function (done) {
+      k.getPeripheralLocalNames([]).should.be.rejected.and.notify(done);
+    });
+  });
+  describe('#getPeripheralWithLocalName', function () {
+    it('should resovle a peripheral with local name', function (done) {
+      let numOfPerifs = 4;
+      let perifs = getListOfPeripheralsOfSize(numOfPerifs);
+      // console.log('perifs', perifs)
+      let goodName = makeLocalName(numOfPerifs - 1); // Will be in the list
+      // console.log(`goodName: ${goodName}`)
+      k.getPeripheralWithLocalName(perifs, goodName).should.be.fulfilled.and.notify(done);
+    });
+    it('should reject if local name is not in perif list', function (done) {
+      let numOfPerifs = 4;
+      let perifs = getListOfPeripheralsOfSize(numOfPerifs);
+      let badName = makeLocalName(numOfPerifs + 2); // Garuenteed to not be in the list
+      k.getPeripheralWithLocalName(perifs, badName).should.be.rejected.and.notify(done);
+    });
+    it('should reject if pArray is not array local name is not in perif list', function (done) {
+      let badName = makeLocalName(1); // Garuenteed to not be in the list
+      k.getPeripheralWithLocalName(badName).should.be.rejected.and.notify(done);
+    });
+  });
+  describe('#isPeripheralGanglion', function () {
+    it('should return true when proper localName', function () {
+      let list = getListOfPeripheralsOfSize(1);
+      let perif = list[0];
+      expect(k.isPeripheralGanglion(perif)).to.equal(true);
+    });
+    it('should return false when incorrect localName', function () {
+      let list = getListOfPeripheralsOfSize(1);
+      let perif = list[0];
+      perif.advertisement.localName = 'burrito';
+      expect(k.isPeripheralGanglion(perif)).to.equal(false);
+    });
+    it('should return false when bad object', function () {
+      expect(k.isPeripheralGanglion({})).to.equal(false);
+    });
+    it('should return false if nothing input', function () {
+      expect(k.isPeripheralGanglion()).to.equal(false);
+    });
+    it('should return false if undfined unput input', function () {
+      let list = getListOfPeripheralsOfSize(1);
+      let perif = list[0];
+      perif.advertisement.localName = undefined;
+      expect(k.isPeripheralGanglion(perif)).to.equal(false);
+    });
+    it('should return false when missing advertisement object', function () {
+      let list = getListOfPeripheralsOfSize(1);
+      let perif = list[0];
+      perif.advertisement = null;
+      expect(k.isPeripheralGanglion(perif)).to.equal(false);
     });
   });
 });
