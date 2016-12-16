@@ -538,6 +538,7 @@ Ganglion.prototype._decompressSamples = function (receivedDeltas) {
  */
 Ganglion.prototype._disconnected = function () {
   this._streaming = false;
+  this._connected = false;
 
   // Clean up _noble
   // TODO: Figure out how to fire function on process ending from inside module
@@ -591,7 +592,7 @@ Ganglion.prototype._nobleConnect = function (peripheral) {
     this._peripheral.on(k.OBCINobleEmitterPeripheralConnect, () => {
       // if (this.options.verbose) console.log("got connect event");
       this._peripheral.discoverServices();
-      if (this._scanning) this._nobleScanStop();
+      if (this.isSearching()) this._nobleScanStop();
     });
 
     this._peripheral.on(k.OBCINobleEmitterPeripheralDisconnect, () => {
@@ -617,19 +618,16 @@ Ganglion.prototype._nobleConnect = function (peripheral) {
         for (var i = 0; i < characteristics.length; i++) {
           // console.log(characteristics[i].uuid);
           if (characteristics[i].uuid === k.SimbleeUuidReceive) {
+            if (this.options.verbose) console.log("Found receiveCharacteristicUUID");
             this._receiveCharacteristic = characteristics[i];
           }
           if (characteristics[i].uuid === k.SimbleeUuidSend) {
-            // if (this.options.verbose) console.log("Found sendCharacteristicUUID");
+            if (this.options.verbose) console.log("Found sendCharacteristicUUID");
             this._sendCharacteristic = characteristics[i];
-            if (this.options.verbose) console.log('connected');
-            this._connected = true;
-            this.emit(k.OBCIEmitterReady);
-            resolve();
           }
         }
 
-        if (this._receiveCharacteristic) {
+        if (this._receiveCharacteristic && this._sendCharacteristic) {
           this._receiveCharacteristic.on(k.OBCINobleEmitterServiceRead, (data) => {
             // TODO: handle all the data, both streaming and not
             this._processBytes(data);
@@ -637,6 +635,12 @@ Ganglion.prototype._nobleConnect = function (peripheral) {
 
           // if (this.options.verbose) console.log('Subscribing for data notifications');
           this._receiveCharacteristic.notify(true);
+
+          this._connected = true;
+          this.emit(k.OBCIEmitterReady);
+          resolve();
+        } else {
+          reject('unable to set both receive and send characteristics!');
         }
       });
 
@@ -670,7 +674,7 @@ Ganglion.prototype._nobleInit = function () {
       this.emit(k.OBCIEmitterBlePoweredUp);
       if (this.options.nobleScanOnPowerOn) {
         this._nobleScanStart().catch((err) => {
-          throw err;
+          console.log(err);
         });
       }
       if (this.peripheralArray.length === 0) {
@@ -678,7 +682,7 @@ Ganglion.prototype._nobleInit = function () {
     } else {
       if (this.isSearching()) {
         this._nobleScanStop().catch((err) => {
-          throw err;
+          console.log(err);
         });
       }
     }
@@ -740,7 +744,7 @@ Ganglion.prototype._nobleScanStart = function () {
  */
 Ganglion.prototype._nobleScanStop = function () {
   return new Promise((resolve, reject) => {
-    if (this.isSearching()) return reject(k.OBCIErrorNobleNotAlreadyScanning);
+    if (!this.isSearching()) return reject(k.OBCIErrorNobleNotAlreadyScanning);
     if (this.options.verbose) console.log(`Stopping scan`);
 
     noble.once(k.OBCINobleEmitterScanStop, () => {
