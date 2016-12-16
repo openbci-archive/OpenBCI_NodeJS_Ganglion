@@ -1,3 +1,11 @@
+# 0.3.3
+
+### New Features
+* Get state of noble with `.isNobleReady()`
+
+### Bug Fixes
+* Fix bug where scan stop would not stop scan which led to many problems. Especially when it comes 
+
 # 0.3.2
 
 ### Bug Fixes
