@@ -304,6 +304,14 @@ Ganglion.prototype.isConnected = function () {
 };
 
 /**
+ * @description Checks if bluetooth is powered on.
+ * @returns {boolean} - True if bluetooth is powered on.
+ */
+Ganglion.prototype.isNobleReady = function () {
+  return this._nobleReady();
+};
+
+/**
  * @description Checks if noble is currently scanning.
  * @returns {boolean} - True if streaming.
  */

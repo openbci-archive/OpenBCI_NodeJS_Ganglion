@@ -297,6 +297,12 @@ Checks if the driver is connected to a board.
 
 **_Returns_** {Boolean} - true if connected
 
+#### <a name="method-is-noble-ready"></a> .isNobleReady()
+
+Checks if bluetooth is powered on. Cannot start scanning till this is true.
+
+**_Returns_** {Boolean} - true if bluetooth is powered on. 
+
 #### <a name="method-is-searching"></a> .isSearching()
 
 Checks if noble is currently scanning. See [`.searchStart()`](#method-search-start) and [`.searchStop`()`](#method-search-stop`)
