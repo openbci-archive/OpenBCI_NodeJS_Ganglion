@@ -1,6 +1,6 @@
 {
   "name": "openbci-ganglion",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "The official Node.js SDK for the OpenBCI Ganglion Biosensor Board.",
   "main": "index.js",
   "scripts": {
@@ -45,12 +45,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/openbci/openbci_nodejs.git"
+    "url": "git+https://github.com/openbci/openbci_nodejs_ganglion.git"
   },
   "bugs": {
-    "url": "https://github.com/openbci/openbci_nodejs/issues"
+    "url": "https://github.com/openbci/openbci_nodejs_ganglion/issues"
   },
-  "homepage": "https://github.com/openbci/openbci_nodejs#readme",
+  "homepage": "https://github.com/openbci/openbci_nodejs_ganglion#readme",
   "engines": {
     "node": ">=4.0.0"
   },
