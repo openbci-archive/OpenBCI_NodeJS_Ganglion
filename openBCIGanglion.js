@@ -115,6 +115,8 @@ function Ganglion (options) {
   this._multiPacketBuffer = null;
   this._packetCounter = k.OBCIGanglionByteId18Bit.max;
   this._peripheral = null;
+  this._rfduinoService = null;
+  this._receiveCharacteristic = null;
   this._scanning = false;
   this._sendCharacteristic = null;
   this._streaming = false;
@@ -251,7 +253,6 @@ Ganglion.prototype.disconnect = function (stopStreaming) {
             if (err) {
               reject(err);
             } else {
-              this._connected = false;
               resolve();
             }
           });
@@ -543,9 +544,17 @@ Ganglion.prototype._disconnected = function () {
   // noble.removeListener('discover', this._nobleOnDeviceDiscoveredCallback);
 
   if (this._peripheral) {
-    this._peripheral.removeAllListeners('servicesDiscover');
-    this._peripheral.removeAllListeners('connect');
-    this._peripheral.removeAllListeners('disconnect');
+    this._peripheral.removeAllListeners(k.OBCINobleEmitterPeripheralConnect);
+    this._peripheral.removeAllListeners(k.OBCINobleEmitterPeripheralDisconnect);
+    this._peripheral.removeAllListeners(k.OBCINobleEmitterPeripheralServicesDiscover);
+  }
+
+  if (this._receiveCharacteristic) {
+    this._receiveCharacteristic.removeAllListeners(k.OBCINobleEmitterServiceRead);
+  }
+
+  if (this._rfduinoService) {
+    this._rfduinoService.removeAllListeners(k.OBCINobleEmitterServiceCharacteristicsDiscover);
   }
 
   // _peripheral = null;
@@ -590,28 +599,25 @@ Ganglion.prototype._nobleConnect = function (peripheral) {
     });
 
     this._peripheral.on(k.OBCINobleEmitterPeripheralServicesDiscover, (services) => {
-      let rfduinoService;
 
       for (var i = 0; i < services.length; i++) {
         if (services[i].uuid === k.SimbleeUuidService) {
-          rfduinoService = services[i];
+          this._rfduinoService = services[i];
           // if (this.options.verbose) console.log("Found simblee Service");
           break;
         }
       }
 
-      if (!rfduinoService) {
+      if (!this._rfduinoService) {
         reject('Couldn\'t find the simblee service.');
       }
 
-      rfduinoService.on(k.OBCINobleEmitterServiceCharacteristicsDiscover, (characteristics) => {
+      this._rfduinoService.on(k.OBCINobleEmitterServiceCharacteristicsDiscover, (characteristics) => {
         // if (this.options.verbose) console.log('Discovered ' + characteristics.length + ' service characteristics');
-        var receiveCharacteristic;
-
         for (var i = 0; i < characteristics.length; i++) {
           // console.log(characteristics[i].uuid);
           if (characteristics[i].uuid === k.SimbleeUuidReceive) {
-            receiveCharacteristic = characteristics[i];
+            this._receiveCharacteristic = characteristics[i];
           }
           if (characteristics[i].uuid === k.SimbleeUuidSend) {
             // if (this.options.verbose) console.log("Found sendCharacteristicUUID");
@@ -623,18 +629,18 @@ Ganglion.prototype._nobleConnect = function (peripheral) {
           }
         }
 
-        if (receiveCharacteristic) {
-          receiveCharacteristic.on(k.OBCINobleEmitterServiceRead, (data) => {
+        if (this._receiveCharacteristic) {
+          this._receiveCharacteristic.on(k.OBCINobleEmitterServiceRead, (data) => {
             // TODO: handle all the data, both streaming and not
             this._processBytes(data);
           });
 
           // if (this.options.verbose) console.log('Subscribing for data notifications');
-          receiveCharacteristic.notify(true);
+          this._receiveCharacteristic.notify(true);
         }
       });
 
-      rfduinoService.discoverCharacteristics();
+      this._rfduinoService.discoverCharacteristics();
     });
 
     // if (this.options.verbose) console.log("Calling connect");
