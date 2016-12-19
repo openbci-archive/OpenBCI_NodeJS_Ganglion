@@ -743,6 +743,7 @@ Ganglion.prototype._nobleScanStart = function () {
     noble.once(k.OBCINobleEmitterScanStart, () => {
       if (this.options.verbose) console.log('Scan started');
       this._scanning = true;
+      this.emit(k.OBCINobleEmitterScanStart);
       resolve();
     });
     // Only look so simblee ble devices and allow duplicates (multiple ganglions)
@@ -763,6 +764,7 @@ Ganglion.prototype._nobleScanStop = function () {
 
     noble.once(k.OBCINobleEmitterScanStop, () => {
       this._scanning = false;
+      this.emit(k.OBCINobleEmitterScanStop);
       if (this.options.verbose) console.log('Scan stopped');
       resolve();
     });
