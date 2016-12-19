@@ -493,10 +493,6 @@ Emitted when the board is in a ready to start streaming state.
 
 Emitted when there is a new sample available.
 
-#### <a name="event-sample"></a> .on('synced', callback)
-
-Emitted when there is a new sample available.
-
 Returns an object with properties:
 
 **_channelData_** {Array}
@@ -536,6 +532,14 @@ Example (if `sendCounts` is `true`):
   "timeStamp": 0
 }
 ```
+
+#### <a name="event-scan-start"></a> .on('scanStart', callback)
+
+Emitted when a noble scan is started.
+
+#### <a name="event-scan-stop"></a> .on('scanStop', callback)
+
+Emitted when a noble scan is stopped.
 
 ## <a name="developing"></a> Developing:
 ### <a name="developing-running"></a> Running:

@@ -1,3 +1,8 @@
+# 0.3.8
+
+### New Features
+* Can now subscribe to `scanStart` and `scanStop` to better control scanning.
+
 # 0.3.7
 
 ### Bug Fixes
