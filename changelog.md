@@ -1,10 +1,15 @@
-# 0.3.3
+# 0.3.6
+
+### Bug Fixes
+* Fixed bug where not disconnecting.
+
+# 0.3.5 - 0.3.4 - 0.3.3
 
 ### New Features
 * Get state of noble with `.isNobleReady()`
 
 ### Bug Fixes
-* Fix bug where scan stop would not stop scan which led to many problems. Especially when it comes 
+* Fix bug where scan stop would not stop scan which led to many problems.
 
 # 0.3.2
 
