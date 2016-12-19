@@ -253,6 +253,7 @@ Ganglion.prototype.disconnect = function (stopStreaming) {
             if (err) {
               reject(err);
             } else {
+              this._disconnected();
               resolve();
             }
           });
@@ -604,7 +605,7 @@ Ganglion.prototype._nobleConnect = function (peripheral) {
     });
 
     this._peripheral.on(k.OBCINobleEmitterPeripheralDisconnect, () => {
-      this._disconnected();
+      if (this.options.verbose) console.log('Peripheral disconnected');
     });
 
     this._peripheral.on(k.OBCINobleEmitterPeripheralServicesDiscover, (services) => {
