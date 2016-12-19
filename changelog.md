@@ -1,3 +1,8 @@
+# 0.3.7
+
+### Bug Fixes
+* Improvements to disconnect
+
 # 0.3.6
 
 ### Bug Fixes

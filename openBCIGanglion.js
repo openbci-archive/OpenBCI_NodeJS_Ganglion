@@ -553,21 +553,26 @@ Ganglion.prototype._disconnected = function () {
   // TODO: Figure out how to fire function on process ending from inside module
   // noble.removeListener('discover', this._nobleOnDeviceDiscoveredCallback);
 
+  if (this._receiveCharacteristic) {
+    this._receiveCharacteristic.removeAllListeners(k.OBCINobleEmitterServiceRead);
+  }
+
+  this._receiveCharacteristic = null;
+
+  if (this._rfduinoService) {
+    this._rfduinoService.removeAllListeners(k.OBCINobleEmitterServiceCharacteristicsDiscover);
+  }
+
+  this._rfduinoService = null;
+
   if (this._peripheral) {
     this._peripheral.removeAllListeners(k.OBCINobleEmitterPeripheralConnect);
     this._peripheral.removeAllListeners(k.OBCINobleEmitterPeripheralDisconnect);
     this._peripheral.removeAllListeners(k.OBCINobleEmitterPeripheralServicesDiscover);
   }
 
-  if (this._receiveCharacteristic) {
-    this._receiveCharacteristic.removeAllListeners(k.OBCINobleEmitterServiceRead);
-  }
+  this._peripheral = null;
 
-  if (this._rfduinoService) {
-    this._rfduinoService.removeAllListeners(k.OBCINobleEmitterServiceCharacteristicsDiscover);
-  }
-
-  // _peripheral = null;
   if (this.options.verbose) console.log('Disconnected');
   if (!this.manualDisconnect) {
     this.autoReconnect();
@@ -622,8 +627,8 @@ Ganglion.prototype._nobleConnect = function (peripheral) {
         reject('Couldn\'t find the simblee service.');
       }
 
-      this._rfduinoService.on(k.OBCINobleEmitterServiceCharacteristicsDiscover, (characteristics) => {
-        // if (this.options.verbose) console.log('Discovered ' + characteristics.length + ' service characteristics');
+      this._rfduinoService.once(k.OBCINobleEmitterServiceCharacteristicsDiscover, (characteristics) => {
+        if (this.options.verbose) console.log('Discovered ' + characteristics.length + ' service characteristics');
         for (var i = 0; i < characteristics.length; i++) {
           // console.log(characteristics[i].uuid);
           if (characteristics[i].uuid === k.SimbleeUuidReceive) {
