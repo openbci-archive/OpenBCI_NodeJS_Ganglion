@@ -1,3 +1,11 @@
+# 0.4.1
+
+### New Features
+* Dropped connection will fire disconnect
+
+### Bug Fixes
+* Improvements to disconnect
+
 # 0.4.0
 
 ### New Features

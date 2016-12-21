@@ -204,7 +204,7 @@ Ganglion.prototype.connect = function (id) {
     if (_.isString(id)) {
       k.getPeripheralWithLocalName(this.ganglionPeripheralArray, id)
         .then((p) => {
-          this._nobleConnect(p);
+          return this._nobleConnect(p);
         })
         .then(resolve)
         .catch(reject);
@@ -240,8 +240,6 @@ Ganglion.prototype.destroyMultiPacketBuffer = function () {
  * @author AJ Keller (@pushtheworldllc)
  */
 Ganglion.prototype.disconnect = function (stopStreaming) {
-  if (!this.isConnected()) return Promise.reject('no board connected');
-
   // no need for timeout here; streamStop already performs a delay
   return Promise.resolve()
     .then(() => {
@@ -677,8 +675,7 @@ Ganglion.prototype._nobleConnect = function (peripheral) {
     this._peripheral.connect((err) => {
       if (err) {
         if (this.options.verbose) console.log(`Unable to connect with error: ${err}`);
-        this._connected = false;
-        this._peripheral = null;
+        this._disconnected();
         reject(err);
       }
     });
