@@ -1,3 +1,12 @@
+# 0.4.0
+
+### New Features
+* If dropped connection, module will now disconnect and clean up.
+
+### Breaking Changes
+* Dropped connection will fire disconnect
+* Auto reconnect functionality temporarily removed.
+
 # 0.3.8
 
 ### New Features

@@ -135,13 +135,17 @@ startFunc();
 function exitHandler (options, err) {
   if (options.cleanup) {
     if (verbose) console.log('clean');
-    ganglion.removeAllListeners('sample');
+    ganglion.manualDisconnect = true;
+    ganglion.disconnect();
     ganglion.removeAllListeners('droppedPacket');
-    ganglion.removeAllListeners('message');
     ganglion.removeAllListeners('accelerometer');
+    ganglion.removeAllListeners('sample');
+    ganglion.removeAllListeners('message');
     ganglion.removeAllListeners('impedance');
-    ganglion.removeAllListeners(k.OBCIEmitterGanglionFound);
+    ganglion.removeAllListeners('close');
+    ganglion.removeAllListeners('ganglionFound');
     ganglion.removeAllListeners('ready');
+    ganglion.destroyNoble();
   }
   if (err) console.log(err.stack);
   if (options.exit) {

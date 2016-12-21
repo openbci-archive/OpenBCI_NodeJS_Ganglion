@@ -219,6 +219,13 @@ Ganglion.prototype.connect = function (id) {
 };
 
 /**
+ * Destroys the noble!
+ */
+Ganglion.prototype.destroyNoble = function () {
+  this._nobleDestroy();
+};
+
+/**
  * Destroys the multi packet buffer.
  */
 Ganglion.prototype.destroyMultiPacketBuffer = function () {
@@ -244,6 +251,7 @@ Ganglion.prototype.disconnect = function (stopStreaming) {
           return this.streamStop();
         }
       }
+      return Promise.resolve();
     })
     .then(() => {
       return new Promise((resolve, reject) => {
@@ -251,6 +259,7 @@ Ganglion.prototype.disconnect = function (stopStreaming) {
         if (this._peripheral) {
           this._peripheral.disconnect((err) => {
             if (err) {
+              this._disconnected();
               reject(err);
             } else {
               this._disconnected();
@@ -573,10 +582,11 @@ Ganglion.prototype._disconnected = function () {
 
   this._peripheral = null;
 
-  if (this.options.verbose) console.log('Disconnected');
   if (!this.manualDisconnect) {
-    this.autoReconnect();
+    // this.autoReconnect();
   }
+
+  if (this.options.verbose) console.log(`Private disconnect clean up`);
 
   this.emit('close');
 };
@@ -611,6 +621,7 @@ Ganglion.prototype._nobleConnect = function (peripheral) {
 
     this._peripheral.on(k.OBCINobleEmitterPeripheralDisconnect, () => {
       if (this.options.verbose) console.log('Peripheral disconnected');
+      this._disconnected();
     });
 
     this._peripheral.on(k.OBCINobleEmitterPeripheralServicesDiscover, (services) => {
