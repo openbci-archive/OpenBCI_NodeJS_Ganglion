@@ -24,22 +24,28 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
   ganglion.on('sample', (sample) => {
     /** Work with sample */
     console.log(sample.sampleNumber);
-    if (sample.sampleNumber === 0) {
-      buf.push(droppedPacketCounter);
-      sizeOfBuf++;
-      droppedPacketCounter = 0;
-      if (sizeOfBuf >= 60) {
-        var sum = 0;
-        for (let i = 0; i < buf.length; i++) {
-          sum += parseInt(buf[i], 10);
-        }
-        const percentDropped = sum / 6000 * 100;
-        console.log(`dropped packet rate: ${sum} - percent dropped: %${percentDropped.toFixed(2)}`);
-        buf.shift();
-      } else {
-        console.log(`time till average rate starts ${60 - sizeOfBuf}`);
-      }
-    }
+
+    // UNCOMMENT BELOW FOR DROPPED PACKET CALCULATIONS...
+    // if (sample.sampleNumber === 0) {
+    //   buf.push(droppedPacketCounter);
+    //   sizeOfBuf++;
+    //   droppedPacketCounter = 0;
+    //   if (sizeOfBuf >= 60) {
+    //     var sum = 0;
+    //     for (let i = 0; i < buf.length; i++) {
+    //       sum += parseInt(buf[i], 10);
+    //     }
+    //     const percentDropped = sum / 6000 * 100;
+    //     console.log(`dropped packet rate: ${sum} - percent dropped: %${percentDropped.toFixed(2)}`);
+    //     buf.shift();
+    //   } else {
+    //     console.log(`time till average rate starts ${60 - sizeOfBuf}`);
+    //   }
+    // }
+  });
+
+  ganglion.on('close', () => {
+    console.log('close event');
   });
 
   ganglion.on('droppedPacket', (data) => {
@@ -75,7 +81,7 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
     } else if (impedance) {
       ganglion.impedanceStart().catch(errorFunc);
     } else {
-      ganglion.streamStart().catch(errorFunc);
+      // ganglion.streamStart().catch(errorFunc);
     }
     console.log('ready');
   });
@@ -87,6 +93,17 @@ function exitHandler (options, err) {
   if (options.cleanup) {
     if (verbose) console.log('clean');
     // console.log(connectedPeripheral)
+    ganglion.manualDisconnect = true;
+    ganglion.disconnect();
+    ganglion.removeAllListeners('droppedPacket');
+    ganglion.removeAllListeners('accelerometer');
+    ganglion.removeAllListeners('sample');
+    ganglion.removeAllListeners('message');
+    ganglion.removeAllListeners('impedance');
+    ganglion.removeAllListeners('close');
+    ganglion.removeAllListeners('ganglionFound');
+    ganglion.removeAllListeners('ready');
+    ganglion.destroyNoble();
 
   }
   if (err) console.log(err.stack);
@@ -103,6 +120,7 @@ function exitHandler (options, err) {
     }
     ganglion.manualDisconnect = true;
     ganglion.disconnect(true).catch(console.log);
+    process.exit(0);
   }
 }
 
