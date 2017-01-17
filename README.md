@@ -176,9 +176,9 @@ See Reference Guide for a complete list of impedance tests.
 ---------------
 ### <a name="constructor"></a> Constructor:
 
-#### <a name="init"></a> Cyton (options)
+#### <a name="init"></a> Ganglion (options)
 
-Create new instance of an Cyton board.
+Create new instance of a Ganglion board.
 
 **_options (optional)_**
 
