@@ -1,7 +1,7 @@
 'use strict';
 const EventEmitter = require('events').EventEmitter;
 const _ = require('lodash');
-const noble = require('noble');
+let noble;
 const util = require('util');
 // Local imports
 const ganglionSample = require('./openBCIGanglionSample');
@@ -63,9 +63,9 @@ const _options = {
  * @constructor
  * @author AJ Keller (@pushtheworldllc)
  */
-function Ganglion (options) {
+function Ganglion (options, callback) {
   if (!(this instanceof Ganglion)) {
-    return new Ganglion(options);
+    return new Ganglion(options, callback);
   }
 
   options = (typeof options !== 'function') && options || {};
@@ -128,9 +128,16 @@ function Ganglion (options) {
   this.manualDisconnect = false;
 
   /** Initializations */
-  if (this.options.nobleAutoStart) this._nobleInit(); // It get's the noble going
   for (var i = 0; i < 3; i++) {
     this._decompressedSamples[i] = [0, 0, 0, 0];
+  }
+
+  try {
+    noble = require('noble');
+    if (this.options.nobleAutoStart) this._nobleInit(); // It get's the noble going
+    callback();
+  } catch (e) {
+    callback(e);
   }
 }
 
@@ -594,8 +601,10 @@ Ganglion.prototype._disconnected = function () {
  * @private
  */
 Ganglion.prototype._nobleDestroy = function () {
-  noble.removeAllListeners(k.OBCINobleEmitterStateChange);
-  noble.removeAllListeners(k.OBCINobleEmitterDiscover);
+  if (noble)  {
+    noble.removeAllListeners(k.OBCINobleEmitterStateChange);
+    noble.removeAllListeners(k.OBCINobleEmitterDiscover);
+  }
 };
 
 Ganglion.prototype._nobleConnect = function (peripheral) {

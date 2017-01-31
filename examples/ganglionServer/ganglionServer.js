@@ -1,10 +1,19 @@
 const Ganglion = require('../../index').Ganglion;
 const k = require('../../openBCIConstants');
 const verbose = true;
-var ganglion = new Ganglion({
-  // debug: true,
+let ganglion = new Ganglion({
+  // debug: true; ,
+  nobleAutoStart: false,
   sendCounts: true,
   verbose: verbose
+}, (error) => {
+  if (error) {
+    console.log(error);
+  } else {
+    if (verbose) {
+      console.log('Ganglion initialize completed');
+    }
+  }
 });
 
 function errorFunc (err) {
@@ -101,6 +110,7 @@ function exitHandler (options, err) {
     ganglion.removeAllListeners('message');
     ganglion.removeAllListeners('impedance');
     ganglion.removeAllListeners('close');
+    ganglion.removeAllListeners('error');
     ganglion.removeAllListeners('ganglionFound');
     ganglion.removeAllListeners('ready');
     ganglion.destroyNoble();
