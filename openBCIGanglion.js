@@ -1,7 +1,7 @@
 'use strict';
 const EventEmitter = require('events').EventEmitter;
 const _ = require('lodash');
-const noble = require('noble');
+let noble;
 const util = require('util');
 // Local imports
 const ganglionSample = require('./openBCIGanglionSample');
@@ -26,7 +26,7 @@ const _options = {
 
 /**
  * @description The initialization method to call first, before any other method.
- * @param options (optional) - Board optional configurations.
+ * @param options {object} (optional) - Board optional configurations.
  *     - `debug` {Boolean} - Print out a raw dump of bytes sent and received. (Default `false`)
  *
  *     - `nobleAutoStart` {Boolean} - Automatically initialize `noble`. Subscribes to blue tooth state changes and such.
@@ -59,13 +59,19 @@ const _options = {
  *                  setting and this sample rate will be used. (Default is `250`)
  *
  *     - `verbose` {Boolean} - Print out useful debugging events. (Default `false`)
- *
+ * @param callback {function} (optional) - A callback function used to determine if the noble module was able to be started.
+ *    This can be very useful on Windows when there is no compatible BLE device found.
  * @constructor
  * @author AJ Keller (@pushtheworldllc)
  */
-function Ganglion (options) {
+function Ganglion (options, callback) {
   if (!(this instanceof Ganglion)) {
-    return new Ganglion(options);
+    return new Ganglion(options, callback);
+  }
+
+  if (options instanceof Function) {
+    callback = options;
+    options = {};
   }
 
   options = (typeof options !== 'function') && options || {};
@@ -128,9 +134,16 @@ function Ganglion (options) {
   this.manualDisconnect = false;
 
   /** Initializations */
-  if (this.options.nobleAutoStart) this._nobleInit(); // It get's the noble going
   for (var i = 0; i < 3; i++) {
     this._decompressedSamples[i] = [0, 0, 0, 0];
+  }
+
+  try {
+    noble = require('noble');
+    if (this.options.nobleAutoStart) this._nobleInit(); // It get's the noble going
+    if (callback) callback();
+  } catch (e) {
+    if (callback) callback(e);
   }
 }
 
@@ -594,8 +607,10 @@ Ganglion.prototype._disconnected = function () {
  * @private
  */
 Ganglion.prototype._nobleDestroy = function () {
-  noble.removeAllListeners(k.OBCINobleEmitterStateChange);
-  noble.removeAllListeners(k.OBCINobleEmitterDiscover);
+  if (noble)  {
+    noble.removeAllListeners(k.OBCINobleEmitterStateChange);
+    noble.removeAllListeners(k.OBCINobleEmitterDiscover);
+  }
 };
 
 Ganglion.prototype._nobleConnect = function (peripheral) {
