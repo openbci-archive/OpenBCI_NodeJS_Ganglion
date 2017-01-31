@@ -1,3 +1,11 @@
+# 0.4.2
+
+### New Features
+* Add callback function to constructor to catch noble errors.
+
+### Bug Fixes
+* Fix #19
+
 # 0.4.1
 
 ### New Features

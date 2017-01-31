@@ -15,6 +15,21 @@ const clone = require('clone');
 chai.use(chaiAsPromised);
 chai.use(sinonChai);
 
+describe('#ganglion-constructor', function () {
+  it('should callback if only callback used', function (done) {
+    const cb = (err) => {
+      done(err);
+    };
+    const ganglion_cb = new Ganglion(cb);
+  });
+  it('should callback if options and callback', function (done) {
+    const cb = (err) => {
+      done(err);
+    };
+    const ganglion_cb = new Ganglion({}, cb);
+  });
+});
+
 describe('#ganglion', function () {
   const mockProperties = {
     nobleAutoStart: false,
