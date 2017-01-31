@@ -116,6 +116,34 @@ const ourBoard = new Ganglion({
 });
 ```
 
+For initializing with callback, such as to catch errors on `noble` startup:
+
+```js
+const Ganglion = require('openbci-ganglion').Ganglion;
+const ourBoard = new Ganglion((error) => {
+  if (error) {
+    console.log("error", error);  
+  } else {
+    console.log("no error");
+  }
+});
+```
+For initializing with options and callback, such as verbose and to catch errors on `noble` startup:
+
+```js
+const Ganglion = require('openbci-ganglion').Ganglion;
+const ourBoard = new Ganglion({
+  verbose: true
+},(error) => {
+  if (error) {
+    console.log("error", error);  
+  } else {
+    console.log("no error");
+  }
+});
+```
+
+
 'ready' event
 ------------
 
@@ -176,7 +204,7 @@ See Reference Guide for a complete list of impedance tests.
 ---------------
 ### <a name="constructor"></a> Constructor:
 
-#### <a name="init"></a> Ganglion (options)
+#### <a name="init"></a> Ganglion (options, callback)
 
 Create new instance of a Ganglion board.
 
@@ -200,6 +228,10 @@ Board optional configurations.
 * `verbose` {Boolean} - Print out useful debugging events (Default `false`)
 
 **Note, we have added support for either all lowercase OR camel case for the options, use whichever style you prefer.**
+
+**_callback (optional)_**
+
+Callback function to catch errors. Returns only error if an error was encountered.
 
 ### <a name="methods"></a> Methods:
 
