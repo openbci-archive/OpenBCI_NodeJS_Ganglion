@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/dm/openbci-ganglion.svg?maxAge=2592000)](http://npmjs.com/package/openbci-ganglion)
 [![js-semistandard-style](https://img.shields.io/badge/code%20style-semistandard-brightgreen.svg?style=flat-square)](https://github.com/Flet/semistandard)
 
-# OpenBCI Node.js SDK
+# OpenBCI Node.js Ganglion SDK
 
 A Node.js module for OpenBCI ~ written with love by [Push The World!](http://www.pushtheworldllc.com)
 
@@ -572,6 +572,8 @@ Emitted when a noble scan is started.
 #### <a name="event-scan-stop"></a> .on('scanStop', callback)
 
 Emitted when a noble scan is stopped.
+
+## <a name="interfacing-with-other-tools"></a> Interfacing With Other Tools:
 
 ### <a name="interfacing-with-other-tools-labstreaminglayer"></a> LabStreamingLayer
 
