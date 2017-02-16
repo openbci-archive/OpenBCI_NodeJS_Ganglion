@@ -1,3 +1,8 @@
+# 0.4.3
+
+### Bug Fixes
+* Fix #23 by hard setting noble to 0.1.7, 0.1.8 breaks
+
 # 0.4.2
 
 ### New Features
