@@ -511,9 +511,14 @@ Ganglion.prototype.write = function (data) {
       if (!Buffer.isBuffer(data)) {
         data = new Buffer(data);
       }
-      if (this.options.debug) openBCIUtils.debugBytes('>>>', data);
-      this._sendCharacteristic.write(data);
-      resolve();
+      this._sendCharacteristic.write(data, true, (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          if (this.options.debug) openBCIUtils.debugBytes('>>>', data);
+          resolve();
+        }
+      });
     } else {
       reject('Send characteristic not set, please call connect method');
     }

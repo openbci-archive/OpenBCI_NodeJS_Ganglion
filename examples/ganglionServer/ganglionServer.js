@@ -2,8 +2,7 @@ const Ganglion = require('../../index').Ganglion;
 const k = require('../../openBCIConstants');
 const verbose = true;
 let ganglion = new Ganglion({
-  // debug: true; ,
-  nobleAutoStart: false,
+  debug: true,
   sendCounts: true,
   verbose: verbose
 }, (error) => {
@@ -63,7 +62,7 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
   });
 
   ganglion.on('message', (message) => {
-    // console.log('message: ', message.toString());
+    console.log('message: ', message.toString());
   });
 
   let lastVal = 0;
@@ -81,21 +80,23 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
   });
 
   ganglion.once('ready', () => {
-    if (accel) {
-      ganglion.accelStart()
-        .then(() => {
-          return ganglion.streamStart();
-        })
-        .catch(errorFunc);
-    } else if (impedance) {
-      ganglion.impedanceStart().catch(errorFunc);
-    } else {
-      // ganglion.streamStart().catch(errorFunc);
-    }
-    console.log('ready');
+      // if (accel) {
+      //     ganglion.accelStart()
+      //         .then(() => {
+      //             return ganglion.streamStart();
+      //         })
+      //         .catch(errorFunc);
+      // } else if (impedance) {
+      //     ganglion.impedanceStart().catch(errorFunc);
+      // } else {
+      //
+      // }
+      ganglion.streamStart().catch(errorFunc);
+      console.log('ready');
+
   });
 
-  ganglion.connect(peripheral).catch(errorFunc);
+  ganglion.connect("Ganglion-58f3").catch(errorFunc);
 });
 
 function exitHandler (options, err) {
