@@ -69,8 +69,6 @@ ganglion.once('ganglionFound', (peripheral) => {
   ganglion.connect(peripheral);
 });
 
-
-
 /* Insert additional exit handlers and cleanup below*/
 ```
 
@@ -90,6 +88,7 @@ numChans = 4;
 sampleRate = 256;
 info = StreamInfo('OpenBCI_EEG', 'EEG', numChans, sampleRate, 'float32', 'openbci_12345')
 outlet = StreamOutlet(info)
+
 # Stream incoming data to LSL
 while True:
     msg = _socket.recv()
