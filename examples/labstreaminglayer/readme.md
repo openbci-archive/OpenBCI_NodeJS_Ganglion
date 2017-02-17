@@ -55,6 +55,7 @@ var socket = zmq.socket('pair');
 
 let ganglion = new Ganglion();
 
+// ZMQ
 socket.bind(portPub)
 
 ganglion.once('ganglionFound', (peripheral) => {
@@ -68,7 +69,6 @@ ganglion.once('ganglionFound', (peripheral) => {
   ganglion.connect(peripheral);
 });
 
-// ZMQ
 
 
 /* Insert additional exit handlers and cleanup below*/
