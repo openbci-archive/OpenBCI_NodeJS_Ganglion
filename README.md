@@ -65,12 +65,12 @@ Please ensure [Python 2.7 is installed](https://www.python.org/downloads/) for a
 ### macOS
 
  * install [Xcode](https://itunes.apple.com/ca/app/xcode/id497799835?mt=12)
- 
+
 ### Linux
 
  * Kernel version 3.6 or above
  * ```libbluetooth-dev```
- 
+
 ### Windows 8+
 
  * [node-gyp requirements for Windows](https://github.com/TooTallNate/node-gyp#installation)
@@ -82,7 +82,7 @@ Please ensure [Python 2.7 is installed](https://www.python.org/downloads/) for a
 
 See [@don](https://github.com/don)'s set up guide on [Bluetooth LE with Node.js and Noble on Windows](https://www.youtube.com/watch?v=mL9B8wuEdms).
 
- 
+
 ## <a name="install"></a> Installation:
 Install from npm:
 ```
@@ -91,7 +91,7 @@ npm install openbci-ganglion
 
 ## <a name="about"></a> About:
 
-The Ganglion driver used by OpenBCI's Processing GUI and Electron Hub. 
+The Ganglion driver used by OpenBCI's Processing GUI and Electron Hub.
 
 Check out the [**_automatic_** tests](https://codecov.io/gh/OpenBCI/OpenBCI_NodeJS_Ganglion) written for it!
 
@@ -333,13 +333,13 @@ Checks if the driver is connected to a board.
 
 Checks if bluetooth is powered on. Cannot start scanning till this is true.
 
-**_Returns_** {Boolean} - true if bluetooth is powered on. 
+**_Returns_** {Boolean} - true if bluetooth is powered on.
 
 #### <a name="method-is-searching"></a> .isSearching()
 
 Checks if noble is currently scanning. See [`.searchStart()`](#method-search-start) and [`.searchStop`()`](#method-search-stop`)
 
-**_Returns_** {Boolean} - true if searching. 
+**_Returns_** {Boolean} - true if searching.
 
 #### <a name="method-is-streaming"></a> .isStreaming()
 
@@ -373,7 +373,7 @@ Call to make `noble` start scanning for Ganglions.
 
 **_maxSearchTime_** {Number}
 
-The amount of time to spend searching. (Default is 20 seconds) 
+The amount of time to spend searching. (Default is 20 seconds)
 
 **_Returns_** {Promise} - fulfilled if scan was started.
 
@@ -459,13 +459,13 @@ Returns an object with properties:
 
 **_accelData_** {Array}
 
-Array of floats for each dimension in g's. 
+Array of floats for each dimension in g's.
 
 **NOTE:** Only present if `sendCounts` is `true`.
 
 **_accelDataCounts_** {Array}
 
-Array of integers for each dimension in counts. 
+Array of integers for each dimension in counts.
 
 **NOTE:** Only present if `sendCounts` is `false`.
 
@@ -493,7 +493,7 @@ Emitted when there is an on the serial port.
 
 #### <a name="event-impedance"></a> .on('impedance', callback)
 
-Emitted when there is a new impedance available. 
+Emitted when there is a new impedance available.
 
 Returns an object with properties:
 
@@ -529,13 +529,13 @@ Returns an object with properties:
 
 **_channelData_** {Array}
 
-Array of floats for each channel in volts.. 
+Array of floats for each channel in volts..
 
 **NOTE:** Only present if `sendCounts` is `true`.
 
 **_channelDataCounts_** {Array}
 
-Array of integers for each channel in counts. 
+Array of integers for each channel in counts.
 
 **NOTE:** Only present if `sendCounts` is `false`.
 
@@ -577,46 +577,12 @@ Emitted when a noble scan is stopped.
 
 ### <a name="interfacing-with-other-tools-labstreaminglayer"></a> LabStreamingLayer
 
-[LabStreamingLayer](https://github.com/sccn/labstreaminglayer) by SCCN is a stream management tool designed to time-synchronize multiple data streams, potentially from different sources, over a LAN network with millisecond accuracy (given configuration).
+[LabStreamingLayer](https://github.com/sccn/labstreaminglayer) is a tool for streaming or recording time-series data. It can be used to interface with [Matlab](https://github.com/sccn/labstreaminglayer/tree/master/LSL/liblsl-Matlab), [Python](https://github.com/sccn/labstreaminglayer/tree/master/LSL/liblsl-Python), [Unity](https://github.com/xfleckx/LSL4Unity), and many other programs.
 
-For example, a VR display device running a Unity simulation may, using the [LSL4Unity](https://github.com/xfleckx/LSL4Unity) library, emit string markers into LSL corresponding to events of interest (For the P300 ERP, this event would be the onset of an attended, unusual noise in a pattern of commonplace ones). The computer doing data collection via the OpenBCI_NodeJS library (potentially with 4ms accuracy) would then output into an LSL stream the EEG and AUX data. LSL can then synchronize the two clocks relative to each other before inputting into a different program or toolkit, like [BCILAB](https://github.com/sccn/BCILAB) for analysis to trigger responses in the Unity display.
+To use LSL with the NodeJS SDK, go to our [labstreaminglayer example](https://github.com/OpenBCI/OpenBCI_NodeJS_Ganglion/tree/master/examples/labstreaminglayer), which contains code that is ready to start an LSL stream of OpenBCI data.
 
-This requires OpenBCI_NodeJS exporting data into LSL. Currently, there does not exist a pre-built NodeJS module for LSL, though LSL comes with tools that could possibly allow creation of one. In the meantime, the simpler route is to use a concurrent python script (driven by NodeJS module [python-shell](https://www.npmjs.com/package/python-shell)) to handoff the data to LSL for you, like so:
+Follow the directions in the [readme](https://github.com/OpenBCI/OpenBCI_NodeJS_Ganglion/blob/master/examples/labstreaminglayer/readme.md) to get started.
 
-In your NodeJS code, before initializing/connecting to the OpenBCIBoard:
-```js
-// Construct LSL Handoff Python Shell
-var PythonShell = require('python-shell');
-var lsloutlet = new PythonShell('LslHandoff.py');
-
-lsloutlet.on('message', function(message){
-    console.log('LslOutlet: ' + message);
-});
-console.log('Python Shell Created for LSLHandoff');
-```
-
-In your NodeJS code, when reading samples:
-```js
-st = sample.channelData.join(' ')
-//getTime returns milliseconds since midnight 1970/01/01
-var s = ''+ sample.timeStamp + ': '+ st
-lsloutlet.send(s)
-```
-
-in LSLHandoff.py:
-```py
-from pylsl import StreamInfo, StreamOutlet
-info = StreamInfo('OpenBCI_EEG', 'EEG', 4, 200, 'float32', '[RANDOM NUMBER HERE]')
-outlet = StreamOutlet(info)
-while True:
-    strSample = raw_input().split(': ',1)
-    sample = map(float, strSample[1].split(' '))
-    stamp = float(strSample[0])
-
-    outlet.push_sample(sample, stamp)
-    print('Pushed Sample At: ' + strSample[0])
-```
-AUX data would be done the same way in a separate LSL stream.
 
 ## <a name="developing"></a> Developing:
 ### <a name="developing-running"></a> Running:
