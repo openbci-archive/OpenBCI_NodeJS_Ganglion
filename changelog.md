@@ -1,3 +1,11 @@
+# 0.4.4
+
+### New Features
+* LSL streaming example (thanks @gabrielibagon)
+
+### Bug Fixes
+* Fix #27 by adding delay
+
 # 0.4.3
 
 ### Bug Fixes
