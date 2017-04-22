@@ -4,7 +4,7 @@
 
 This code provides an example of how to stream OpenBCI Ganglion data through the [lab streaming layer](https://github.com/sccn/labstreaminglayer) using the NodeJS SDK.
 
-Follow the steps in this README to start streaming. The code is ready to run as-is, but can be modified and extended to customize how you are sending your data. This is designed to be used with the **OpenBCI Ganglion** (for **Ganglion support**, see the [Ganglion Node SDK](https://github.com/OpenBCI/OpenBCI_NodeJS/tree/master/examples/labstreaminglayer)).
+Follow the steps in this README to start streaming. The code is ready to run as-is, but can be modified and extended to customize how you are sending your data. This is designed to be used with the **OpenBCI Ganglion** (for **Cyton support**, see the [OpenBCI Node SDK](https://github.com/OpenBCI/OpenBCI_NodeJS/tree/master/examples/labstreaminglayer)).
 
 ## Prerequisites
 
@@ -44,7 +44,7 @@ npm run start-node
 Note: depending on your computer settings, you may need to run as administrator or with `sudo`.
 
 ## Writing Lab Streaming Layer Code
-If you would like to use lab streaming layer in a custom OpenBCI NodeJS application, you must include an instance of the OpenBCI NodeJS library and an instance of a Python interface. A basic example is shown below:
+If you would like to use lab streaming layer in a custom OpenBCI NodeJS Ganglion application, you must include an instance of the OpenBCI NodeJS Ganglion library and an instance of a Python interface. A basic example is shown below:
 
 index.js
 ```js
@@ -55,6 +55,7 @@ var socket = zmq.socket('pair');
 
 let ganglion = new Ganglion();
 
+// ZMQ
 socket.bind(portPub)
 
 ganglion.once('ganglionFound', (peripheral) => {
@@ -67,9 +68,6 @@ ganglion.once('ganglionFound', (peripheral) => {
   });
   ganglion.connect(peripheral);
 });
-
-// ZMQ
-
 
 /* Insert additional exit handlers and cleanup below*/
 ```
@@ -90,6 +88,7 @@ numChans = 4;
 sampleRate = 256;
 info = StreamInfo('OpenBCI_EEG', 'EEG', numChans, sampleRate, 'float32', 'openbci_12345')
 outlet = StreamOutlet(info)
+
 # Stream incoming data to LSL
 while True:
     msg = _socket.recv()
