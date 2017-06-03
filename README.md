@@ -70,6 +70,7 @@ Please ensure [Python 2.7 is installed](https://www.python.org/downloads/) for a
 
  * Kernel version 3.6 or above
  * ```libbluetooth-dev```
+ * ```libudev-dev```
 
 ### Windows 8+
 
