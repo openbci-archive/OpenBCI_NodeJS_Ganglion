@@ -71,6 +71,19 @@ Please ensure [Python 2.7 is installed](https://www.python.org/downloads/) for a
  * Kernel version 3.6 or above
  * ```libbluetooth-dev```
 
+#### Running without sudo
+
+In order to stream data on Linux without root/sudo access, you may need to give the `node` binary privileges to start and stop BLE advertising.
+
+```sh
+sudo setcap cap_net_raw+eip $(eval readlink -f `which node`)
+```
+
+**Note:** this command requires `setcap` to be installed. Install it with the `libcap2-bin` package.
+```sh
+sudo apt-get install libcap2-bin
+```
+
 ### Windows 8+
 
  * [node-gyp requirements for Windows](https://github.com/TooTallNate/node-gyp#installation)
