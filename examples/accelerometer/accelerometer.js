@@ -1,5 +1,5 @@
 const Ganglion = require('../../index').Ganglion;
-const k = require('../../openBCIConstants');
+const k = require('openbci-utilities').Constants;
 const verbose = true;
 let ganglion = new Ganglion({
   debug: false,
@@ -43,9 +43,7 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
       if (accel) {
           ganglion.accelStart()
               .then(() => {
-                  setTimeout(() => {
-                    return ganglion.streamStart();
-                  }, 60); // Delay until firmware is fixed.
+                return ganglion.streamStart();
               })
               .catch(errorFunc);
       } else {

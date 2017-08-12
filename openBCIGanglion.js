@@ -4,11 +4,53 @@ const _ = require('lodash');
 let noble;
 const util = require('util');
 // Local imports
-const ganglionSample = require('./openBCIGanglionSample');
-const k = require('./openBCIConstants');
-const openBCIUtils = require('./openBCIUtils');
+const OpenBCIUtilities = require('openbci-utilities');
+const obciUtils = OpenBCIUtilities.Utilities;
+const k = OpenBCIUtilities.Constants;
+const obciDebug = OpenBCIUtilities.Debug;
+const OpenBCISimulator = OpenBCIUtilities.Simulator;
 const clone = require('clone');
 
+/**
+ * @typedef {Object} InitializationObject Board optional configurations.
+ * @property {Boolean} debug Print out a raw dump of bytes sent and received. (Default `false`)
+ *
+ * @property {Boolean} nobleAutoStart Automatically initialize `noble`. Subscribes to blue tooth state changes and such.
+ *           (Default `true`)
+ *
+ * @property {Boolean} nobleScanOnPowerOn Start scanning for Ganglion BLE devices as soon as power turns on.
+ *           (Default `true`)
+ *
+ * @property {Boolean} sendCounts Send integer raw counts instead of scaled floats.
+ *           (Default `false`)
+ *
+ * @property {Boolean} simulate (IN-OP) Full functionality, just mock data. (Default `false`)
+ *
+ * @property {Boolean} simulatorBoardFailure (IN-OP)  Simulates board communications failure. This occurs when the RFduino on
+ *                  the board is not polling the RFduino on the dongle. (Default `false`)
+ *
+ * @property {Boolean} simulatorHasAccelerometer Sets simulator to send packets with accelerometer data. (Default `true`)
+ *
+ * @property {Boolean} simulatorInjectAlpha Inject a 10Hz alpha wave in Channels 1 and 2 (Default `true`)
+ *
+ * @property {String} simulatorInjectLineNoise Injects line noise on channels.
+ *          3 Possible Options:
+ *              `60Hz` - 60Hz line noise (Default) [America]
+ *              `50Hz` - 50Hz line noise [Europe]
+ *              `none` - Do not inject line noise.
+ *
+ * @property {Number} simulatorSampleRate The sample rate to use for the simulator. Simulator will set to 125 if
+ *                  `simulatorDaisyModuleAttached` is set `true`. However, setting this option overrides that
+ *                  setting and this sample rate will be used. (Default is `250`)
+ *
+ * @property {Boolean} - Print out useful debugging events. (Default `false`)
+ */
+
+/**
+ * Options object
+ * @type {InitializationObject}
+ * @private
+ */
 const _options = {
   debug: false,
   nobleAutoStart: true,
@@ -26,39 +68,7 @@ const _options = {
 
 /**
  * @description The initialization method to call first, before any other method.
- * @param options {object} (optional) - Board optional configurations.
- *     - `debug` {Boolean} - Print out a raw dump of bytes sent and received. (Default `false`)
- *
- *     - `nobleAutoStart` {Boolean} - Automatically initialize `noble`. Subscribes to blue tooth state changes and such.
- *           (Default `true`)
- *
- *     - `nobleScanOnPowerOn` {Boolean} - Start scanning for Ganglion BLE devices as soon as power turns on.
- *           (Default `true`)
- *
- *     - `sendCounts` {Boolean} - Send integer raw counts instead of scaled floats.
- *           (Default `false`)
- *
- *     - `simulate` {Boolean} - (IN-OP) Full functionality, just mock data. Must attach Daisy module by setting
- *                  `simulatorDaisyModuleAttached` to `true` in order to get 16 channels. (Default `false`)
- *
- *     - `simulatorBoardFailure` {Boolean} - (IN-OP)  Simulates board communications failure. This occurs when the RFduino on
- *                  the board is not polling the RFduino on the dongle. (Default `false`)
- *
- *     - `simulatorHasAccelerometer` - {Boolean} - Sets simulator to send packets with accelerometer data. (Default `true`)
- *
- *     - `simulatorInjectAlpha` - {Boolean} - Inject a 10Hz alpha wave in Channels 1 and 2 (Default `true`)
- *
- *     - `simulatorInjectLineNoise` {String} - Injects line noise on channels.
- *          3 Possible Options:
- *              `60Hz` - 60Hz line noise (Default) [America]
- *              `50Hz` - 50Hz line noise [Europe]
- *              `none` - Do not inject line noise.
- *
- *     - `simulatorSampleRate` {Number} - The sample rate to use for the simulator. Simulator will set to 125 if
- *                  `simulatorDaisyModuleAttached` is set `true`. However, setting this option overrides that
- *                  setting and this sample rate will be used. (Default is `250`)
- *
- *     - `verbose` {Boolean} - Print out useful debugging events. (Default `false`)
+ * @param options {IntializationObject} (optional) - Board optional configurations.
  * @param callback {function} (optional) - A callback function used to determine if the noble module was able to be started.
  *    This can be very useful on Windows when there is no compatible BLE device found.
  * @constructor
@@ -107,6 +117,9 @@ function Ganglion (options, callback) {
   for (o in options) throw new Error('"' + o + '" is not a valid option');
 
   // Set to global options object
+  /**
+   * @type {InitializationObject}
+   */
   this.options = clone(opts);
 
   /** Private Properties (keep alphabetical) */
@@ -121,6 +134,10 @@ function Ganglion (options, callback) {
   this._multiPacketBuffer = null;
   this._packetCounter = k.OBCIGanglionByteId18Bit.max;
   this._peripheral = null;
+  this._rawDataPacketToSample = k.rawDataToSampleObjectDefault(k.numberOfChannelsForBoardType(k.OBCIBoardGanglion));
+  this._rawDataPacketToSample.scale = !this.options.sendCounts;
+  this._rawDataPacketToSample.protocol = k.OBCIProtocolBLE;
+  this._rawDataPacketToSample.verbose = this.options.verbose;
   this._rfduinoService = null;
   this._receiveCharacteristic = null;
   this._scanning = false;
@@ -515,7 +532,7 @@ Ganglion.prototype.write = function (data) {
         if (err) {
           reject(err);
         } else {
-          if (this.options.debug) openBCIUtils.debugBytes('>>>', data);
+          if (this.options.debug) obciDebug.debugBytes('>>>', data);
           resolve();
         }
       });
@@ -807,7 +824,7 @@ Ganglion.prototype._nobleScanStop = function () {
  * @private
  */
 Ganglion.prototype._processBytes = function (data) {
-  if (this.options.debug) openBCIUtils.debugBytes('<<', data);
+  if (this.options.debug) obciDebug.debugBytes('<<', data);
   this.lastPacket = data;
   let byteId = parseInt(data[0]);
   if (byteId <= k.OBCIGanglionByteId19Bit.max) {
@@ -845,7 +862,7 @@ Ganglion.prototype._processCompressedData = function (data) {
 
   // Decompress the buffer into array
   if (this._packetCounter <= k.OBCIGanglionByteId18Bit.max) {
-    this._decompressSamples(ganglionSample.decompressDeltas18Bit(data.slice(k.OBCIGanglionPacket18Bit.dataStart, k.OBCIGanglionPacket18Bit.dataStop)));
+    this._decompressSamples(obciUtils.decompressDeltas18Bit(data.slice(k.OBCIGanglionPacket18Bit.dataStart, k.OBCIGanglionPacket18Bit.dataStop)));
     switch (this._packetCounter % 10) {
       case k.OBCIGanglionAccelAxisX:
         this._accelArray[0] = this.options.sendCounts ? data.readInt8(k.OBCIGanglionPacket18Bit.auxByte - 1) : data.readInt8(k.OBCIGanglionPacket18Bit.auxByte - 1) * k.OBCIGanglionAccelScaleFactor;
@@ -867,7 +884,7 @@ Ganglion.prototype._processCompressedData = function (data) {
     this.emit(k.OBCIEmitterSample, sample2);
 
   } else {
-    this._decompressSamples(ganglionSample.decompressDeltas19Bit(data.slice(k.OBCIGanglionPacket19Bit.dataStart, k.OBCIGanglionPacket19Bit.dataStop)));
+    this._decompressSamples(obciUtils.decompressDeltas19Bit(data.slice(k.OBCIGanglionPacket19Bit.dataStart, k.OBCIGanglionPacket19Bit.dataStop)));
 
     const sample1 = this._buildSample((this._packetCounter - 100) * 2 - 1, this._decompressedSamples[1]);
     this.emit(k.OBCIEmitterSample, sample1);
@@ -888,7 +905,7 @@ Ganglion.prototype._processCompressedData = function (data) {
  * @private
  */
 Ganglion.prototype._processImpedanceData = function (data) {
-  if (this.options.debug) openBCIUtils.debugBytes('Impedance <<< ', data);
+  if (this.options.debug) obciDebug.debugBytes('Impedance <<< ', data);
   const byteId = parseInt(data[0]);
   let channelNumber;
   switch (byteId) {
@@ -1034,7 +1051,7 @@ Ganglion.prototype._processRouteSampleData = function(data) {
  * @private
  */
 Ganglion.prototype._processOtherData = function (data) {
-  openBCIUtils.debugBytes('OtherData <<< ', data);
+  obciDebug.debugBytes('OtherData <<< ', data);
 };
 
 /**
@@ -1048,12 +1065,16 @@ Ganglion.prototype._processUncompressedData = function (data) {
 
   // Resets the packet counter back to zero
   this._packetCounter = k.OBCIGanglionByteIdUncompressed;  // used to find dropped packets
+  data.copy(this._rawDataPacketToSample.rawDataPacket, 2);
+
   for (let i = 0; i < 4; i++) {
     this._decompressedSamples[0][i] = interpret24bitAsInt32(data, start);  // seed the decompressor
     start += 3;
   }
 
   const newSample = this._buildSample(0, this._decompressedSamples[0]);
+  this._rawDataPacketToSample.rawDataPacket = rawDataPacket;
+  const sample = obciUtils.transformRawDataPacketToSample(this._rawDataPacketToSample);
   this.emit(k.OBCIEmitterSample, newSample);
 };
 
