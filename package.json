@@ -1,9 +1,10 @@
 {
   "name": "openbci-ganglion",
-  "version": "0.3.2",
+  "version": "1.0.0",
   "description": "The official Node.js SDK for the OpenBCI Ganglion Biosensor Board.",
   "main": "index.js",
   "scripts": {
+    "connect-test": "node examples/ganglionConnectionTest/ganglionConnectionTest.js",
     "server": "node examples/ganglionServer/ganglionServer.js",
     "test": "semistandard | snazzy && mocha test",
     "test-cov": "istanbul cover ./node_modules/mocha/bin/_mocha -- -R spec && codecov"
@@ -21,7 +22,8 @@
     "gaussian": "^1.0.0",
     "lodash": "^4.16.6",
     "mathjs": "^3.3.0",
-    "noble": "^1.7.0",
+    "noble": "1.7.0",
+    "openbci-utilities": "^0.1.2",
     "performance-now": "^0.2.0",
     "sntp": "^2.0.0",
     "streamsearch": "^0.1.2"
@@ -44,14 +46,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/openbci/openbci_nodejs.git"
+    "url": "git+https://github.com/openbci/openbci_nodejs_ganglion.git"
   },
   "bugs": {
-    "url": "https://github.com/openbci/openbci_nodejs/issues"
+    "url": "https://github.com/openbci/openbci_nodejs_ganglion/issues"
   },
-  "homepage": "https://github.com/openbci/openbci_nodejs#readme",
+  "homepage": "https://github.com/openbci/openbci_nodejs_ganglion#readme",
   "engines": {
-    "node": ">=4.0.0"
+    "node": "4 | 5 | 6"
   },
   "semistandard": {
     "globals": [

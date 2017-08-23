@@ -1,14 +1,56 @@
 'use strict';
 const EventEmitter = require('events').EventEmitter;
 const _ = require('lodash');
-const noble = require('noble');
+let noble;
 const util = require('util');
 // Local imports
-const ganglionSample = require('./openBCIGanglionSample');
-const k = require('./openBCIConstants');
-const openBCIUtils = require('./openBCIUtils');
+const OpenBCIUtilities = require('openbci-utilities');
+const obciUtils = OpenBCIUtilities.Utilities;
+const k = OpenBCIUtilities.Constants;
+const obciDebug = OpenBCIUtilities.Debug;
+const OpenBCISimulator = OpenBCIUtilities.Simulator;
 const clone = require('clone');
 
+/**
+ * @typedef {Object} InitializationObject Board optional configurations.
+ * @property {Boolean} debug Print out a raw dump of bytes sent and received. (Default `false`)
+ *
+ * @property {Boolean} nobleAutoStart Automatically initialize `noble`. Subscribes to blue tooth state changes and such.
+ *           (Default `true`)
+ *
+ * @property {Boolean} nobleScanOnPowerOn Start scanning for Ganglion BLE devices as soon as power turns on.
+ *           (Default `true`)
+ *
+ * @property {Boolean} sendCounts Send integer raw counts instead of scaled floats.
+ *           (Default `false`)
+ *
+ * @property {Boolean} simulate (IN-OP) Full functionality, just mock data. (Default `false`)
+ *
+ * @property {Boolean} simulatorBoardFailure (IN-OP)  Simulates board communications failure. This occurs when the RFduino on
+ *                  the board is not polling the RFduino on the dongle. (Default `false`)
+ *
+ * @property {Boolean} simulatorHasAccelerometer Sets simulator to send packets with accelerometer data. (Default `true`)
+ *
+ * @property {Boolean} simulatorInjectAlpha Inject a 10Hz alpha wave in Channels 1 and 2 (Default `true`)
+ *
+ * @property {String} simulatorInjectLineNoise Injects line noise on channels.
+ *          3 Possible Options:
+ *              `60Hz` - 60Hz line noise (Default) [America]
+ *              `50Hz` - 50Hz line noise [Europe]
+ *              `none` - Do not inject line noise.
+ *
+ * @property {Number} simulatorSampleRate The sample rate to use for the simulator. Simulator will set to 125 if
+ *                  `simulatorDaisyModuleAttached` is set `true`. However, setting this option overrides that
+ *                  setting and this sample rate will be used. (Default is `250`)
+ *
+ * @property {Boolean} - Print out useful debugging events. (Default `false`)
+ */
+
+/**
+ * Options object
+ * @type {InitializationObject}
+ * @private
+ */
 const _options = {
   debug: false,
   nobleAutoStart: true,
@@ -26,46 +68,20 @@ const _options = {
 
 /**
  * @description The initialization method to call first, before any other method.
- * @param options (optional) - Board optional configurations.
- *     - `debug` {Boolean} - Print out a raw dump of bytes sent and received. (Default `false`)
- *
- *     - `nobleAutoStart` {Boolean} - Automatically initialize `noble`. Subscribes to blue tooth state changes and such.
- *           (Default `true`)
- *
- *     - `nobleScanOnPowerOn` {Boolean} - Start scanning for Ganglion BLE devices as soon as power turns on.
- *           (Default `true`)
- *
- *     - `sendCounts` {Boolean} - Send integer raw counts instead of scaled floats.
- *           (Default `false`)
- *
- *     - `simulate` {Boolean} - (IN-OP) Full functionality, just mock data. Must attach Daisy module by setting
- *                  `simulatorDaisyModuleAttached` to `true` in order to get 16 channels. (Default `false`)
- *
- *     - `simulatorBoardFailure` {Boolean} - (IN-OP)  Simulates board communications failure. This occurs when the RFduino on
- *                  the board is not polling the RFduino on the dongle. (Default `false`)
- *
- *     - `simulatorHasAccelerometer` - {Boolean} - Sets simulator to send packets with accelerometer data. (Default `true`)
- *
- *     - `simulatorInjectAlpha` - {Boolean} - Inject a 10Hz alpha wave in Channels 1 and 2 (Default `true`)
- *
- *     - `simulatorInjectLineNoise` {String} - Injects line noise on channels.
- *          3 Possible Options:
- *              `60Hz` - 60Hz line noise (Default) [America]
- *              `50Hz` - 50Hz line noise [Europe]
- *              `none` - Do not inject line noise.
- *
- *     - `simulatorSampleRate` {Number} - The sample rate to use for the simulator. Simulator will set to 125 if
- *                  `simulatorDaisyModuleAttached` is set `true`. However, setting this option overrides that
- *                  setting and this sample rate will be used. (Default is `250`)
- *
- *     - `verbose` {Boolean} - Print out useful debugging events. (Default `false`)
- *
+ * @param options {IntializationObject} (optional) - Board optional configurations.
+ * @param callback {function} (optional) - A callback function used to determine if the noble module was able to be started.
+ *    This can be very useful on Windows when there is no compatible BLE device found.
  * @constructor
  * @author AJ Keller (@pushtheworldllc)
  */
-function Ganglion (options) {
+function Ganglion (options, callback) {
   if (!(this instanceof Ganglion)) {
-    return new Ganglion(options);
+    return new Ganglion(options, callback);
+  }
+
+  if (options instanceof Function) {
+    callback = options;
+    options = {};
   }
 
   options = (typeof options !== 'function') && options || {};
@@ -101,6 +117,9 @@ function Ganglion (options) {
   for (o in options) throw new Error('"' + o + '" is not a valid option');
 
   // Set to global options object
+  /**
+   * @type {InitializationObject}
+   */
   this.options = clone(opts);
 
   /** Private Properties (keep alphabetical) */
@@ -115,6 +134,12 @@ function Ganglion (options) {
   this._multiPacketBuffer = null;
   this._packetCounter = k.OBCIGanglionByteId18Bit.max;
   this._peripheral = null;
+  this._rawDataPacketToSample = k.rawDataToSampleObjectDefault(k.numberOfChannelsForBoardType(k.OBCIBoardGanglion));
+  this._rawDataPacketToSample.scale = !this.options.sendCounts;
+  this._rawDataPacketToSample.protocol = k.OBCIProtocolBLE;
+  this._rawDataPacketToSample.verbose = this.options.verbose;
+  this._rfduinoService = null;
+  this._receiveCharacteristic = null;
   this._scanning = false;
   this._sendCharacteristic = null;
   this._streaming = false;
@@ -126,9 +151,16 @@ function Ganglion (options) {
   this.manualDisconnect = false;
 
   /** Initializations */
-  if (this.options.nobleAutoStart) this._nobleInit(); // It get's the noble going
   for (var i = 0; i < 3; i++) {
     this._decompressedSamples[i] = [0, 0, 0, 0];
+  }
+
+  try {
+    noble = require('noble');
+    if (this.options.nobleAutoStart) this._nobleInit(); // It get's the noble going
+    if (callback) callback();
+  } catch (e) {
+    if (callback) callback(e);
   }
 }
 
@@ -202,7 +234,7 @@ Ganglion.prototype.connect = function (id) {
     if (_.isString(id)) {
       k.getPeripheralWithLocalName(this.ganglionPeripheralArray, id)
         .then((p) => {
-          this._nobleConnect(p);
+          return this._nobleConnect(p);
         })
         .then(resolve)
         .catch(reject);
@@ -214,6 +246,13 @@ Ganglion.prototype.connect = function (id) {
       reject(k.OBCIErrorInvalidByteLength);
     }
   });
+};
+
+/**
+ * Destroys the noble!
+ */
+Ganglion.prototype.destroyNoble = function () {
+  this._nobleDestroy();
 };
 
 /**
@@ -231,8 +270,6 @@ Ganglion.prototype.destroyMultiPacketBuffer = function () {
  * @author AJ Keller (@pushtheworldllc)
  */
 Ganglion.prototype.disconnect = function (stopStreaming) {
-  if (!this.isConnected()) return Promise.reject('no board connected');
-
   // no need for timeout here; streamStop already performs a delay
   return Promise.resolve()
     .then(() => {
@@ -242,6 +279,7 @@ Ganglion.prototype.disconnect = function (stopStreaming) {
           return this.streamStop();
         }
       }
+      return Promise.resolve();
     })
     .then(() => {
       return new Promise((resolve, reject) => {
@@ -249,9 +287,10 @@ Ganglion.prototype.disconnect = function (stopStreaming) {
         if (this._peripheral) {
           this._peripheral.disconnect((err) => {
             if (err) {
+              this._disconnected();
               reject(err);
             } else {
-              this._connected = false;
+              this._disconnected();
               resolve();
             }
           });
@@ -300,6 +339,14 @@ Ganglion.prototype.impedanceStop = function () {
  */
 Ganglion.prototype.isConnected = function () {
   return this._connected;
+};
+
+/**
+ * @description Checks if bluetooth is powered on.
+ * @returns {boolean} - True if bluetooth is powered on.
+ */
+Ganglion.prototype.isNobleReady = function () {
+  return this._nobleReady();
 };
 
 /**
@@ -481,9 +528,14 @@ Ganglion.prototype.write = function (data) {
       if (!Buffer.isBuffer(data)) {
         data = new Buffer(data);
       }
-      if (this.options.debug) openBCIUtils.debugBytes('>>>', data);
-      this._sendCharacteristic.write(data);
-      resolve();
+      this._sendCharacteristic.write(data, true, (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          if (this.options.debug) obciDebug.debugBytes('>>>', data);
+          resolve();
+        }
+      });
     } else {
       reject('Send characteristic not set, please call connect method');
     }
@@ -537,22 +589,37 @@ Ganglion.prototype._decompressSamples = function (receivedDeltas) {
  */
 Ganglion.prototype._disconnected = function () {
   this._streaming = false;
+  this._connected = false;
 
   // Clean up _noble
   // TODO: Figure out how to fire function on process ending from inside module
   // noble.removeListener('discover', this._nobleOnDeviceDiscoveredCallback);
 
-  if (this._peripheral) {
-    this._peripheral.removeAllListeners('servicesDiscover');
-    this._peripheral.removeAllListeners('connect');
-    this._peripheral.removeAllListeners('disconnect');
+  if (this._receiveCharacteristic) {
+    this._receiveCharacteristic.removeAllListeners(k.OBCINobleEmitterServiceRead);
   }
 
-  // _peripheral = null;
-  if (this.options.verbose) console.log('Disconnected');
-  if (!this.manualDisconnect) {
-    this.autoReconnect();
+  this._receiveCharacteristic = null;
+
+  if (this._rfduinoService) {
+    this._rfduinoService.removeAllListeners(k.OBCINobleEmitterServiceCharacteristicsDiscover);
   }
+
+  this._rfduinoService = null;
+
+  if (this._peripheral) {
+    this._peripheral.removeAllListeners(k.OBCINobleEmitterPeripheralConnect);
+    this._peripheral.removeAllListeners(k.OBCINobleEmitterPeripheralDisconnect);
+    this._peripheral.removeAllListeners(k.OBCINobleEmitterPeripheralServicesDiscover);
+  }
+
+  this._peripheral = null;
+
+  if (!this.manualDisconnect) {
+    // this.autoReconnect();
+  }
+
+  if (this.options.verbose) console.log(`Private disconnect clean up`);
 
   this.emit('close');
 };
@@ -562,8 +629,10 @@ Ganglion.prototype._disconnected = function () {
  * @private
  */
 Ganglion.prototype._nobleDestroy = function () {
-  noble.removeAllListeners(k.OBCINobleEmitterStateChange);
-  noble.removeAllListeners(k.OBCINobleEmitterDiscover);
+  if (noble)  {
+    noble.removeAllListeners(k.OBCINobleEmitterStateChange);
+    noble.removeAllListeners(k.OBCINobleEmitterDiscover);
+  }
 };
 
 Ganglion.prototype._nobleConnect = function (peripheral) {
@@ -582,59 +651,60 @@ Ganglion.prototype._nobleConnect = function (peripheral) {
     this._peripheral.on(k.OBCINobleEmitterPeripheralConnect, () => {
       // if (this.options.verbose) console.log("got connect event");
       this._peripheral.discoverServices();
-      if (this._scanning) this._nobleScanStop();
+      if (this.isSearching()) this._nobleScanStop();
     });
 
     this._peripheral.on(k.OBCINobleEmitterPeripheralDisconnect, () => {
+      if (this.options.verbose) console.log('Peripheral disconnected');
       this._disconnected();
     });
 
     this._peripheral.on(k.OBCINobleEmitterPeripheralServicesDiscover, (services) => {
-      let rfduinoService;
 
       for (var i = 0; i < services.length; i++) {
         if (services[i].uuid === k.SimbleeUuidService) {
-          rfduinoService = services[i];
+          this._rfduinoService = services[i];
           // if (this.options.verbose) console.log("Found simblee Service");
           break;
         }
       }
 
-      if (!rfduinoService) {
+      if (!this._rfduinoService) {
         reject('Couldn\'t find the simblee service.');
       }
 
-      rfduinoService.on(k.OBCINobleEmitterServiceCharacteristicsDiscover, (characteristics) => {
-        // if (this.options.verbose) console.log('Discovered ' + characteristics.length + ' service characteristics');
-        var receiveCharacteristic;
-
+      this._rfduinoService.once(k.OBCINobleEmitterServiceCharacteristicsDiscover, (characteristics) => {
+        if (this.options.verbose) console.log('Discovered ' + characteristics.length + ' service characteristics');
         for (var i = 0; i < characteristics.length; i++) {
           // console.log(characteristics[i].uuid);
           if (characteristics[i].uuid === k.SimbleeUuidReceive) {
-            receiveCharacteristic = characteristics[i];
+            if (this.options.verbose) console.log("Found receiveCharacteristicUUID");
+            this._receiveCharacteristic = characteristics[i];
           }
           if (characteristics[i].uuid === k.SimbleeUuidSend) {
-            // if (this.options.verbose) console.log("Found sendCharacteristicUUID");
+            if (this.options.verbose) console.log("Found sendCharacteristicUUID");
             this._sendCharacteristic = characteristics[i];
-            if (this.options.verbose) console.log('connected');
-            this._connected = true;
-            this.emit(k.OBCIEmitterReady);
-            resolve();
           }
         }
 
-        if (receiveCharacteristic) {
-          receiveCharacteristic.on(k.OBCINobleEmitterServiceRead, (data) => {
+        if (this._receiveCharacteristic && this._sendCharacteristic) {
+          this._receiveCharacteristic.on(k.OBCINobleEmitterServiceRead, (data) => {
             // TODO: handle all the data, both streaming and not
             this._processBytes(data);
           });
 
           // if (this.options.verbose) console.log('Subscribing for data notifications');
-          receiveCharacteristic.notify(true);
+          this._receiveCharacteristic.notify(true);
+
+          this._connected = true;
+          this.emit(k.OBCIEmitterReady);
+          resolve();
+        } else {
+          reject('unable to set both receive and send characteristics!');
         }
       });
 
-      rfduinoService.discoverCharacteristics();
+      this._rfduinoService.discoverCharacteristics();
     });
 
     // if (this.options.verbose) console.log("Calling connect");
@@ -642,8 +712,7 @@ Ganglion.prototype._nobleConnect = function (peripheral) {
     this._peripheral.connect((err) => {
       if (err) {
         if (this.options.verbose) console.log(`Unable to connect with error: ${err}`);
-        this._connected = false;
-        this._peripheral = null;
+        this._disconnected();
         reject(err);
       }
     });
@@ -664,7 +733,7 @@ Ganglion.prototype._nobleInit = function () {
       this.emit(k.OBCIEmitterBlePoweredUp);
       if (this.options.nobleScanOnPowerOn) {
         this._nobleScanStart().catch((err) => {
-          throw err;
+          console.log(err);
         });
       }
       if (this.peripheralArray.length === 0) {
@@ -672,7 +741,7 @@ Ganglion.prototype._nobleInit = function () {
     } else {
       if (this.isSearching()) {
         this._nobleScanStop().catch((err) => {
-          throw err;
+          console.log(err);
         });
       }
     }
@@ -719,6 +788,7 @@ Ganglion.prototype._nobleScanStart = function () {
     noble.once(k.OBCINobleEmitterScanStart, () => {
       if (this.options.verbose) console.log('Scan started');
       this._scanning = true;
+      this.emit(k.OBCINobleEmitterScanStart);
       resolve();
     });
     // Only look so simblee ble devices and allow duplicates (multiple ganglions)
@@ -734,11 +804,12 @@ Ganglion.prototype._nobleScanStart = function () {
  */
 Ganglion.prototype._nobleScanStop = function () {
   return new Promise((resolve, reject) => {
-    if (this.isSearching()) return reject(k.OBCIErrorNobleNotAlreadyScanning);
+    if (!this.isSearching()) return reject(k.OBCIErrorNobleNotAlreadyScanning);
     if (this.options.verbose) console.log(`Stopping scan`);
 
     noble.once(k.OBCINobleEmitterScanStop, () => {
       this._scanning = false;
+      this.emit(k.OBCINobleEmitterScanStop);
       if (this.options.verbose) console.log('Scan stopped');
       resolve();
     });
@@ -753,7 +824,7 @@ Ganglion.prototype._nobleScanStop = function () {
  * @private
  */
 Ganglion.prototype._processBytes = function (data) {
-  if (this.options.debug) openBCIUtils.debugBytes('<<', data);
+  if (this.options.debug) obciDebug.debugBytes('<<', data);
   this.lastPacket = data;
   let byteId = parseInt(data[0]);
   if (byteId <= k.OBCIGanglionByteId19Bit.max) {
@@ -791,7 +862,7 @@ Ganglion.prototype._processCompressedData = function (data) {
 
   // Decompress the buffer into array
   if (this._packetCounter <= k.OBCIGanglionByteId18Bit.max) {
-    this._decompressSamples(ganglionSample.decompressDeltas18Bit(data.slice(k.OBCIGanglionPacket18Bit.dataStart, k.OBCIGanglionPacket18Bit.dataStop)));
+    this._decompressSamples(obciUtils.decompressDeltas18Bit(data.slice(k.OBCIGanglionPacket18Bit.dataStart, k.OBCIGanglionPacket18Bit.dataStop)));
     switch (this._packetCounter % 10) {
       case k.OBCIGanglionAccelAxisX:
         this._accelArray[0] = this.options.sendCounts ? data.readInt8(k.OBCIGanglionPacket18Bit.auxByte - 1) : data.readInt8(k.OBCIGanglionPacket18Bit.auxByte - 1) * k.OBCIGanglionAccelScaleFactor;
@@ -813,7 +884,7 @@ Ganglion.prototype._processCompressedData = function (data) {
     this.emit(k.OBCIEmitterSample, sample2);
 
   } else {
-    this._decompressSamples(ganglionSample.decompressDeltas19Bit(data.slice(k.OBCIGanglionPacket19Bit.dataStart, k.OBCIGanglionPacket19Bit.dataStop)));
+    this._decompressSamples(obciUtils.decompressDeltas19Bit(data.slice(k.OBCIGanglionPacket19Bit.dataStart, k.OBCIGanglionPacket19Bit.dataStop)));
 
     const sample1 = this._buildSample((this._packetCounter - 100) * 2 - 1, this._decompressedSamples[1]);
     this.emit(k.OBCIEmitterSample, sample1);
@@ -834,7 +905,7 @@ Ganglion.prototype._processCompressedData = function (data) {
  * @private
  */
 Ganglion.prototype._processImpedanceData = function (data) {
-  if (this.options.debug) openBCIUtils.debugBytes('Impedance <<< ', data);
+  if (this.options.debug) obciDebug.debugBytes('Impedance <<< ', data);
   const byteId = parseInt(data[0]);
   let channelNumber;
   switch (byteId) {
@@ -980,7 +1051,7 @@ Ganglion.prototype._processRouteSampleData = function(data) {
  * @private
  */
 Ganglion.prototype._processOtherData = function (data) {
-  openBCIUtils.debugBytes('OtherData <<< ', data);
+  obciDebug.debugBytes('OtherData <<< ', data);
 };
 
 /**
@@ -994,12 +1065,16 @@ Ganglion.prototype._processUncompressedData = function (data) {
 
   // Resets the packet counter back to zero
   this._packetCounter = k.OBCIGanglionByteIdUncompressed;  // used to find dropped packets
+  data.copy(this._rawDataPacketToSample.rawDataPacket, 2);
+
   for (let i = 0; i < 4; i++) {
     this._decompressedSamples[0][i] = interpret24bitAsInt32(data, start);  // seed the decompressor
     start += 3;
   }
 
   const newSample = this._buildSample(0, this._decompressedSamples[0]);
+  this._rawDataPacketToSample.rawDataPacket = rawDataPacket;
+  const sample = obciUtils.transformRawDataPacketToSample(this._rawDataPacketToSample);
   this.emit(k.OBCIEmitterSample, newSample);
 };
 

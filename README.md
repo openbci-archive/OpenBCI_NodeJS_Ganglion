@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/dm/openbci-ganglion.svg?maxAge=2592000)](http://npmjs.com/package/openbci-ganglion)
 [![js-semistandard-style](https://img.shields.io/badge/code%20style-semistandard-brightgreen.svg?style=flat-square)](https://github.com/Flet/semistandard)
 
-# OpenBCI Node.js SDK
+# OpenBCI Node.js Ganglion SDK
 
 A Node.js module for OpenBCI ~ written with love by [Push The World!](http://www.pushtheworldllc.com)
 
@@ -65,12 +65,12 @@ Please ensure [Python 2.7 is installed](https://www.python.org/downloads/) for a
 ### macOS
 
  * install [Xcode](https://itunes.apple.com/ca/app/xcode/id497799835?mt=12)
- 
+
 ### Linux
 
  * Kernel version 3.6 or above
  * ```libbluetooth-dev```
- 
+
 ### Windows 8+
 
  * [node-gyp requirements for Windows](https://github.com/TooTallNate/node-gyp#installation)
@@ -82,7 +82,7 @@ Please ensure [Python 2.7 is installed](https://www.python.org/downloads/) for a
 
 See [@don](https://github.com/don)'s set up guide on [Bluetooth LE with Node.js and Noble on Windows](https://www.youtube.com/watch?v=mL9B8wuEdms).
 
- 
+
 ## <a name="install"></a> Installation:
 Install from npm:
 ```
@@ -91,7 +91,7 @@ npm install openbci-ganglion
 
 ## <a name="about"></a> About:
 
-The Ganglion driver used by OpenBCI's Processing GUI and Electron Hub. 
+The Ganglion driver used by OpenBCI's Processing GUI and Electron Hub.
 
 Check out the [**_automatic_** tests](https://codecov.io/gh/OpenBCI/OpenBCI_NodeJS_Ganglion) written for it!
 
@@ -115,6 +115,34 @@ const ourBoard = new Ganglion({
   verbose: true
 });
 ```
+
+For initializing with callback, such as to catch errors on `noble` startup:
+
+```js
+const Ganglion = require('openbci-ganglion').Ganglion;
+const ourBoard = new Ganglion((error) => {
+  if (error) {
+    console.log("error", error);  
+  } else {
+    console.log("no error");
+  }
+});
+```
+For initializing with options and callback, such as verbose and to catch errors on `noble` startup:
+
+```js
+const Ganglion = require('openbci-ganglion').Ganglion;
+const ourBoard = new Ganglion({
+  verbose: true
+},(error) => {
+  if (error) {
+    console.log("error", error);  
+  } else {
+    console.log("no error");
+  }
+});
+```
+
 
 'ready' event
 ------------
@@ -176,9 +204,9 @@ See Reference Guide for a complete list of impedance tests.
 ---------------
 ### <a name="constructor"></a> Constructor:
 
-#### <a name="init"></a> Cyton (options)
+#### <a name="init"></a> Ganglion (options, callback)
 
-Create new instance of an Cyton board.
+Create new instance of a Ganglion board.
 
 **_options (optional)_**
 
@@ -200,6 +228,10 @@ Board optional configurations.
 * `verbose` {Boolean} - Print out useful debugging events (Default `false`)
 
 **Note, we have added support for either all lowercase OR camel case for the options, use whichever style you prefer.**
+
+**_callback (optional)_**
+
+Callback function to catch errors. Returns only error if an error was encountered.
 
 ### <a name="methods"></a> Methods:
 
@@ -297,11 +329,17 @@ Checks if the driver is connected to a board.
 
 **_Returns_** {Boolean} - true if connected
 
+#### <a name="method-is-noble-ready"></a> .isNobleReady()
+
+Checks if bluetooth is powered on. Cannot start scanning till this is true.
+
+**_Returns_** {Boolean} - true if bluetooth is powered on.
+
 #### <a name="method-is-searching"></a> .isSearching()
 
 Checks if noble is currently scanning. See [`.searchStart()`](#method-search-start) and [`.searchStop`()`](#method-search-stop`)
 
-**_Returns_** {Boolean} - true if searching. 
+**_Returns_** {Boolean} - true if searching.
 
 #### <a name="method-is-streaming"></a> .isStreaming()
 
@@ -335,7 +373,7 @@ Call to make `noble` start scanning for Ganglions.
 
 **_maxSearchTime_** {Number}
 
-The amount of time to spend searching. (Default is 20 seconds) 
+The amount of time to spend searching. (Default is 20 seconds)
 
 **_Returns_** {Promise} - fulfilled if scan was started.
 
@@ -421,13 +459,13 @@ Returns an object with properties:
 
 **_accelData_** {Array}
 
-Array of floats for each dimension in g's. 
+Array of floats for each dimension in g's.
 
 **NOTE:** Only present if `sendCounts` is `true`.
 
 **_accelDataCounts_** {Array}
 
-Array of integers for each dimension in counts. 
+Array of integers for each dimension in counts.
 
 **NOTE:** Only present if `sendCounts` is `false`.
 
@@ -455,7 +493,7 @@ Emitted when there is an on the serial port.
 
 #### <a name="event-impedance"></a> .on('impedance', callback)
 
-Emitted when there is a new impedance available. 
+Emitted when there is a new impedance available.
 
 Returns an object with properties:
 
@@ -487,21 +525,17 @@ Emitted when the board is in a ready to start streaming state.
 
 Emitted when there is a new sample available.
 
-#### <a name="event-sample"></a> .on('synced', callback)
-
-Emitted when there is a new sample available.
-
 Returns an object with properties:
 
 **_channelData_** {Array}
 
-Array of floats for each channel in volts.. 
+Array of floats for each channel in volts..
 
 **NOTE:** Only present if `sendCounts` is `true`.
 
 **_channelDataCounts_** {Array}
 
-Array of integers for each channel in counts. 
+Array of integers for each channel in counts.
 
 **NOTE:** Only present if `sendCounts` is `false`.
 
@@ -530,6 +564,25 @@ Example (if `sendCounts` is `true`):
   "timeStamp": 0
 }
 ```
+
+#### <a name="event-scan-start"></a> .on('scanStart', callback)
+
+Emitted when a noble scan is started.
+
+#### <a name="event-scan-stop"></a> .on('scanStop', callback)
+
+Emitted when a noble scan is stopped.
+
+## <a name="interfacing-with-other-tools"></a> Interfacing With Other Tools:
+
+### <a name="interfacing-with-other-tools-labstreaminglayer"></a> LabStreamingLayer
+
+[LabStreamingLayer](https://github.com/sccn/labstreaminglayer) is a tool for streaming or recording time-series data. It can be used to interface with [Matlab](https://github.com/sccn/labstreaminglayer/tree/master/LSL/liblsl-Matlab), [Python](https://github.com/sccn/labstreaminglayer/tree/master/LSL/liblsl-Python), [Unity](https://github.com/xfleckx/LSL4Unity), and many other programs.
+
+To use LSL with the NodeJS SDK, go to our [labstreaminglayer example](https://github.com/OpenBCI/OpenBCI_NodeJS_Ganglion/tree/master/examples/labstreaminglayer), which contains code that is ready to start an LSL stream of OpenBCI data.
+
+Follow the directions in the [readme](https://github.com/OpenBCI/OpenBCI_NodeJS_Ganglion/blob/master/examples/labstreaminglayer/readme.md) to get started.
+
 
 ## <a name="developing"></a> Developing:
 ### <a name="developing-running"></a> Running:
