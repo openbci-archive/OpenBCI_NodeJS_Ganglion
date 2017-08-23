@@ -90,8 +90,8 @@ function Ganglion (options, callback) {
   /** Configuring Options */
   let o;
   for (o in _options) {
-    var userOption = (o in options) ? o : o.toLowerCase();
-    var userValue = options[userOption];
+    let userOption = (o in options) ? o : o.toLowerCase();
+    let userValue = options[userOption];
     delete options[userOption];
 
     if (typeof _options[o] === 'object') {
@@ -125,6 +125,8 @@ function Ganglion (options, callback) {
   /** Private Properties (keep alphabetical) */
   this._accelArray = [0, 0, 0];
   this._connected = false;
+  this._bufBLERaw = Buffer.alloc(k.OBCIPacketSizeBLERaw);
+  this._bufRawDataPacket = Buffer.alloc(k.OBCIPacketSize);
   this._decompressedSamples = new Array(3);
   this._droppedPacketCounter = 0;
   this._firstPacket = true;
@@ -151,7 +153,7 @@ function Ganglion (options, callback) {
   this.manualDisconnect = false;
 
   /** Initializations */
-  for (var i = 0; i < 3; i++) {
+  for (let i = 0; i < 3; i++) {
     this._decompressedSamples[i] = [0, 0, 0, 0];
   }
 
@@ -661,7 +663,7 @@ Ganglion.prototype._nobleConnect = function (peripheral) {
 
     this._peripheral.on(k.OBCINobleEmitterPeripheralServicesDiscover, (services) => {
 
-      for (var i = 0; i < services.length; i++) {
+      for (let i = 0; i < services.length; i++) {
         if (services[i].uuid === k.SimbleeUuidService) {
           this._rfduinoService = services[i];
           // if (this.options.verbose) console.log("Found simblee Service");
@@ -675,7 +677,7 @@ Ganglion.prototype._nobleConnect = function (peripheral) {
 
       this._rfduinoService.once(k.OBCINobleEmitterServiceCharacteristicsDiscover, (characteristics) => {
         if (this.options.verbose) console.log('Discovered ' + characteristics.length + ' service characteristics');
-        for (var i = 0; i < characteristics.length; i++) {
+        for (let i = 0; i < characteristics.length; i++) {
           // console.log(characteristics[i].uuid);
           if (characteristics[i].uuid === k.SimbleeUuidReceive) {
             if (this.options.verbose) console.log("Found receiveCharacteristicUUID");
@@ -877,19 +879,47 @@ Ganglion.prototype._processCompressedData = function (data) {
       default:
         break;
     }
-    const sample1 = this._buildSample(this._packetCounter * 2 - 1, this._decompressedSamples[1]);
+    obciUtils.convertGanglionArrayToBuffer(this._decompressedSamples[1], this._bufBLERaw);
+    obciUtils.ganglionFillRawDataPacket({
+      data: this._bufBLERaw,
+      rawDataPacket: this._bufRawDataPacket,
+      sampleNumber: this._packetCounter * 2 - 1
+    });
+    this._rawDataPacketToSample.rawDataPacket = this._bufRawDataPacket;
+    const sample1 = obciUtils.transformRawDataPacketToSample(this._rawDataPacketToSample)
     this.emit(k.OBCIEmitterSample, sample1);
 
-    const sample2 = this._buildSample(this._packetCounter * 2, this._decompressedSamples[2]);
+    obciUtils.convertGanglionArrayToBuffer(this._decompressedSamples[2], this._bufBLERaw);
+    obciUtils.ganglionFillRawDataPacket({
+      data: this._bufBLERaw,
+      rawDataPacket: this._bufRawDataPacket,
+      sampleNumber: this._packetCounter * 2
+    });
+    this._rawDataPacketToSample.rawDataPacket = this._bufRawDataPacket;
+    const sample2 = obciUtils.transformRawDataPacketToSample(this._rawDataPacketToSample)
     this.emit(k.OBCIEmitterSample, sample2);
 
   } else {
     this._decompressSamples(obciUtils.decompressDeltas19Bit(data.slice(k.OBCIGanglionPacket19Bit.dataStart, k.OBCIGanglionPacket19Bit.dataStop)));
 
-    const sample1 = this._buildSample((this._packetCounter - 100) * 2 - 1, this._decompressedSamples[1]);
+    obciUtils.convertGanglionArrayToBuffer(this._decompressedSamples[1], this._bufBLERaw);
+    obciUtils.ganglionFillRawDataPacket({
+      data: this._bufBLERaw,
+      rawDataPacket: this._bufRawDataPacket,
+      sampleNumber: (this._packetCounter - 100) * 2 - 1
+    });
+    this._rawDataPacketToSample.rawDataPacket = this._bufRawDataPacket;
+    const sample1 = obciUtils.transformRawDataPacketToSample(this._rawDataPacketToSample)
     this.emit(k.OBCIEmitterSample, sample1);
 
-    const sample2 = this._buildSample((this._packetCounter - 100) * 2, this._decompressedSamples[2]);
+    obciUtils.convertGanglionArrayToBuffer(this._decompressedSamples[2], this._bufBLERaw);
+    obciUtils.ganglionFillRawDataPacket({
+      data: this._bufBLERaw,
+      rawDataPacket: this._bufRawDataPacket,
+      sampleNumber: (this._packetCounter - 100) * 2
+    });
+    this._rawDataPacketToSample.rawDataPacket = this._bufRawDataPacket;
+    const sample2 = obciUtils.transformRawDataPacketToSample(this._rawDataPacketToSample)
     this.emit(k.OBCIEmitterSample, sample2);
   }
 
@@ -1082,7 +1112,7 @@ module.exports = Ganglion;
 
 function interpret24bitAsInt32 (byteArray, index) {
   // little endian
-  var newInt = (
+  let newInt = (
     ((0xFF & byteArray[index]) << 16) |
     ((0xFF & byteArray[index + 1]) << 8) |
     (0xFF & byteArray[index + 2])
