@@ -553,18 +553,17 @@ Ganglion.prototype.write = function (data) {
  * @private
  */
 Ganglion.prototype._buildSample = function (sampleNumber, rawData) {
-  let sample = {
-    sampleNumber: sampleNumber,
-    timeStamp: Date.now()
-  };
+  let sample;
   if (this.options.sendCounts) {
-    sample['channelDataCounts'] = rawData;
+    sample = obciUtils.newSampleNoScale(sampleNumber);
+    sample.channelDataCounts = rawData;
   } else {
-    sample['channelData'] = [];
+    sample = obciUtils.newSample(sampleNumber);
     for (let j = 0; j < k.OBCINumberOfChannelsGanglion; j++) {
       sample.channelData.push(rawData[j] * k.OBCIGanglionScaleFactorPerCountVolts);
     }
   }
+  sample.timestamp = Date.now();
   return sample;
 };
 
@@ -863,6 +862,9 @@ Ganglion.prototype._processCompressedData = function (data) {
   // Decompress the buffer into array
   if (this._packetCounter <= k.OBCIGanglionByteId18Bit.max) {
     this._decompressSamples(obciUtils.decompressDeltas18Bit(data.slice(k.OBCIGanglionPacket18Bit.dataStart, k.OBCIGanglionPacket18Bit.dataStop)));
+    const sample1 = this._buildSample(this._packetCounter * 2 - 1, this._decompressedSamples[1]);
+    const sample2 = this._buildSample(this._packetCounter * 2, this._decompressedSamples[2]);
+
     switch (this._packetCounter % 10) {
       case k.OBCIGanglionAccelAxisX:
         this._accelArray[0] = this.options.sendCounts ? data.readInt8(k.OBCIGanglionPacket18Bit.auxByte - 1) : data.readInt8(k.OBCIGanglionPacket18Bit.auxByte - 1) * k.OBCIGanglionAccelScaleFactor;
@@ -873,14 +875,16 @@ Ganglion.prototype._processCompressedData = function (data) {
       case k.OBCIGanglionAccelAxisZ:
         this._accelArray[2] = this.options.sendCounts ? data.readInt8(k.OBCIGanglionPacket18Bit.auxByte - 1) : data.readInt8(k.OBCIGanglionPacket18Bit.auxByte - 1) * k.OBCIGanglionAccelScaleFactor;
         this.emit(k.OBCIEmitterAccelerometer, this._accelArray);
+        if (this.options.sendCounts) {
+          sample1.accelData = this._accelArray;
+        } else {
+          sample1.accelDataCounts = this._accelArray;
+        }
         break;
       default:
         break;
     }
-    const sample1 = this._buildSample(this._packetCounter * 2 - 1, this._decompressedSamples[1]);
     this.emit(k.OBCIEmitterSample, sample1);
-
-    const sample2 = this._buildSample(this._packetCounter * 2, this._decompressedSamples[2]);
     this.emit(k.OBCIEmitterSample, sample2);
 
   } else {
@@ -1073,8 +1077,6 @@ Ganglion.prototype._processUncompressedData = function (data) {
   }
 
   const newSample = this._buildSample(0, this._decompressedSamples[0]);
-  this._rawDataPacketToSample.rawDataPacket = rawDataPacket;
-  const sample = obciUtils.transformRawDataPacketToSample(this._rawDataPacketToSample);
   this.emit(k.OBCIEmitterSample, newSample);
 };
 

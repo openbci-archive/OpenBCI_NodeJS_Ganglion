@@ -23,7 +23,7 @@
     "lodash": "^4.16.6",
     "mathjs": "^3.3.0",
     "noble": "1.7.0",
-    "openbci-utilities": "^0.1.2",
+    "openbci-utilities": "^0.2.5",
     "performance-now": "^0.2.0",
     "sntp": "^2.0.0",
     "streamsearch": "^0.1.2"
