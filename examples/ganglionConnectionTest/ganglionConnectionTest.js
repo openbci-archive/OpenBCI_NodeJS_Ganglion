@@ -1,8 +1,8 @@
-const Ganglion = require('../../index').Ganglion;
-const k = require('../../openBCIConstants');
+const Ganglion = require('../../openBCIGanglion');
+const k = require('openbci-utilities').Constants;
 const verbose = true;
 var ganglion = new Ganglion({
-  // debug: true,
+  debug: false,
   sendCounts: true,
   verbose: verbose,
   nobleScanOnPowerOn: false,
@@ -26,7 +26,11 @@ const fullGangFunc = () => {
     let sizeOfBuf = 0;
     ganglion.on('sample', (sample) => {
       /** Work with sample */
-      console.log(sample.sampleNumber);
+      if (sample.valid) {
+        console.log(sample.sampleNumber);
+      } else {
+        console.log('err');
+      }
     });
 
     ganglion.on('droppedPacket', (data) => {

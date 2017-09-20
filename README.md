@@ -37,7 +37,7 @@ The purpose of this module is to **get connected** and **start streaming** as fa
 Get connected and start streaming right now
 
 ```js
-const Ganglion = require('openbci-ganglion').Ganglion;
+const Ganglion = require('openbci-ganglion');
 const ganglion = new Ganglion();
 ganglion.once('ganglionFound', (peripheral) => {
   // Stop searching for BLE devices once a ganglion is found.
@@ -117,14 +117,14 @@ Initialization
 Initializing the board:
 
 ```js
-const Ganglion = require('openbci-ganglion').Ganglion;
+const Ganglion = require('openbci-ganglion');
 const ganglion = new Ganglion();
 ```
 
 For initializing with options, such as verbose print outs:
 
 ```js
-const Ganglion = require('openbci-ganglion').Ganglion;
+const Ganglion = require('openbci-ganglion');
 const ourBoard = new Ganglion({
   verbose: true
 });
@@ -133,7 +133,7 @@ const ourBoard = new Ganglion({
 For initializing with callback, such as to catch errors on `noble` startup:
 
 ```js
-const Ganglion = require('openbci-ganglion').Ganglion;
+const Ganglion = require('openbci-ganglion');
 const ourBoard = new Ganglion((error) => {
   if (error) {
     console.log("error", error);  
@@ -145,7 +145,7 @@ const ourBoard = new Ganglion((error) => {
 For initializing with options and callback, such as verbose and to catch errors on `noble` startup:
 
 ```js
-const Ganglion = require('openbci-ganglion').Ganglion;
+const Ganglion = require('openbci-ganglion');
 const ourBoard = new Ganglion({
   verbose: true
 },(error) => {
@@ -165,7 +165,7 @@ You MUST wait for the 'ready' event to be emitted before streaming/talking with 
 so installing the 'sample' listener and writing before the ready event might result in... nothing at all.
 
 ```js
-const Ganglion = require('openbci-ganglion').Ganglion;
+const Ganglion = require('openbci-ganglion');
 const ourBoard = new Ganglion();
 ourBoard.connect(portName).then(function(boardSerial) {
     ourBoard.on('ready',function() {
@@ -192,7 +192,7 @@ To get a ['sample'](#event-sample) event, you need to:
 3. In callback for ['ready'](#event-ready) emitter, call [`streamStart()`](#method-stream-start)
 4. Install the ['sample'](#event-sample) event emitter
 ```js
-const Ganglion = require('openbci-ganglion').Ganglion;
+const Ganglion = require('openbci-ganglion');
 const ourBoard = new Ganglion();
 ourBoard.connect(localName).then(function() {
     ourBoard.on('ready',function() {
@@ -207,7 +207,7 @@ ourBoard.connect(localName).then(function() {
 ```
 Close the connection with [`.streamStop()`](#method-stream-stop) and disconnect with [`.disconnect()`](#method-disconnect)
 ```js
-const Ganglion = require('openbci-ganglion').Ganglion;
+const Ganglion = require('openbci-ganglion');
 const ourBoard = new Ganglion();
 ourBoard.streamStop().then(ourBoard.disconnect());
 ```
