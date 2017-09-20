@@ -90,8 +90,8 @@ function Ganglion (options, callback) {
   /** Configuring Options */
   let o;
   for (o in _options) {
-    var userOption = (o in options) ? o : o.toLowerCase();
-    var userValue = options[userOption];
+    let userOption = (o in options) ? o : o.toLowerCase();
+    let userValue = options[userOption];
     delete options[userOption];
 
     if (typeof _options[o] === 'object') {
@@ -128,8 +128,6 @@ function Ganglion (options, callback) {
   this._decompressedSamples = new Array(3);
   this._droppedPacketCounter = 0;
   this._firstPacket = true;
-  this._lastDroppedPacket = null;
-  this._lastPacket = null;
   this._localName = null;
   this._multiPacketBuffer = null;
   this._packetCounter = k.OBCIGanglionByteId18Bit.max;
@@ -151,7 +149,7 @@ function Ganglion (options, callback) {
   this.manualDisconnect = false;
 
   /** Initializations */
-  for (var i = 0; i < 3; i++) {
+  for (let i = 0; i < 3; i++) {
     this._decompressedSamples[i] = [0, 0, 0, 0];
   }
 
@@ -660,7 +658,7 @@ Ganglion.prototype._nobleConnect = function (peripheral) {
 
     this._peripheral.on(k.OBCINobleEmitterPeripheralServicesDiscover, (services) => {
 
-      for (var i = 0; i < services.length; i++) {
+      for (let i = 0; i < services.length; i++) {
         if (services[i].uuid === k.SimbleeUuidService) {
           this._rfduinoService = services[i];
           // if (this.options.verbose) console.log("Found simblee Service");
@@ -674,7 +672,7 @@ Ganglion.prototype._nobleConnect = function (peripheral) {
 
       this._rfduinoService.once(k.OBCINobleEmitterServiceCharacteristicsDiscover, (characteristics) => {
         if (this.options.verbose) console.log('Discovered ' + characteristics.length + ' service characteristics');
-        for (var i = 0; i < characteristics.length; i++) {
+        for (let i = 0; i < characteristics.length; i++) {
           // console.log(characteristics[i].uuid);
           if (characteristics[i].uuid === k.SimbleeUuidReceive) {
             if (this.options.verbose) console.log("Found receiveCharacteristicUUID");
@@ -891,9 +889,9 @@ Ganglion.prototype._processCompressedData = function (data) {
     this._decompressSamples(obciUtils.decompressDeltas19Bit(data.slice(k.OBCIGanglionPacket19Bit.dataStart, k.OBCIGanglionPacket19Bit.dataStop)));
 
     const sample1 = this._buildSample((this._packetCounter - 100) * 2 - 1, this._decompressedSamples[1]);
-    this.emit(k.OBCIEmitterSample, sample1);
-
     const sample2 = this._buildSample((this._packetCounter - 100) * 2, this._decompressedSamples[2]);
+
+    this.emit(k.OBCIEmitterSample, sample1);
     this.emit(k.OBCIEmitterSample, sample2);
   }
 
@@ -1084,7 +1082,7 @@ module.exports = Ganglion;
 
 function interpret24bitAsInt32 (byteArray, index) {
   // little endian
-  var newInt = (
+  let newInt = (
     ((0xFF & byteArray[index]) << 16) |
     ((0xFF & byteArray[index + 1]) << 8) |
     (0xFF & byteArray[index + 2])
