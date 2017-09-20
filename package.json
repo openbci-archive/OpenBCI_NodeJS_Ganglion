@@ -2,7 +2,7 @@
   "name": "openbci-ganglion",
   "version": "1.0.0",
   "description": "The official Node.js SDK for the OpenBCI Ganglion Biosensor Board.",
-  "main": "index.js",
+  "main": "openBCIGanglion.js",
   "scripts": {
     "connect-test": "node examples/ganglionConnectionTest/ganglionConnectionTest.js",
     "server": "node examples/ganglionServer/ganglionServer.js",

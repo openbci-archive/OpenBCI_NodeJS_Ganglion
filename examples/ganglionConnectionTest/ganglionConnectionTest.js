@@ -1,4 +1,4 @@
-const Ganglion = require('../../index').Ganglion;
+const Ganglion = require('../../openBCIGanglion');
 const k = require('openbci-utilities').Constants;
 const verbose = true;
 var ganglion = new Ganglion({
