@@ -40,15 +40,15 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
   });
 
   ganglion.once('ready', () => {
-      if (accel) {
-          ganglion.accelStart()
+    if (accel) {
+      ganglion.accelStart()
               .then(() => {
                 return ganglion.streamStart();
               })
               .catch(errorFunc);
-      } else {
-        ganglion.streamStart().catch(errorFunc);
-      }
+    } else {
+      ganglion.streamStart().catch(errorFunc);
+    }
   });
 
   ganglion.connect(peripheral).catch(errorFunc);
@@ -70,7 +70,6 @@ function exitHandler (options, err) {
     ganglion.removeAllListeners('ganglionFound');
     ganglion.removeAllListeners('ready');
     ganglion.destroyNoble();
-
   }
   if (err) console.log(err.stack);
   if (options.exit) {
@@ -87,14 +86,14 @@ function exitHandler (options, err) {
   }
 }
 
-if (process.platform === "win32") {
-  const rl = require("readline").createInterface({
+if (process.platform === 'win32') {
+  const rl = require('readline').createInterface({
     input: process.stdin,
     output: process.stdout
   });
 
-  rl.on("SIGINT", function () {
-    process.emit("SIGINT");
+  rl.on('SIGINT', function () {
+    process.emit('SIGINT');
   });
 }
 
