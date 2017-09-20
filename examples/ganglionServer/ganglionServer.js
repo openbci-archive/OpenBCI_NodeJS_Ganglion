@@ -25,31 +25,9 @@ const accel = false;
 ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
   ganglion.searchStop().catch(errorFunc);
 
-  let droppedPacketCounter = 0;
-  let secondCounter = 0;
-  let buf = [];
-  let sizeOfBuf = 0;
   ganglion.on('sample', (sample) => {
     /** Work with sample */
     console.log(sample.sampleNumber);
-
-    // UNCOMMENT BELOW FOR DROPPED PACKET CALCULATIONS...
-    // if (sample.sampleNumber === 0) {
-    //   buf.push(droppedPacketCounter);
-    //   sizeOfBuf++;
-    //   droppedPacketCounter = 0;
-    //   if (sizeOfBuf >= 60) {
-    //     var sum = 0;
-    //     for (let i = 0; i < buf.length; i++) {
-    //       sum += parseInt(buf[i], 10);
-    //     }
-    //     const percentDropped = sum / 6000 * 100;
-    //     console.log(`dropped packet rate: ${sum} - percent dropped: %${percentDropped.toFixed(2)}`);
-    //     buf.shift();
-    //   } else {
-    //     console.log(`time till average rate starts ${60 - sizeOfBuf}`);
-    //   }
-    // }
   });
 
   ganglion.on('close', () => {
@@ -58,7 +36,6 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
 
   ganglion.on('droppedPacket', (data) => {
     console.log('droppedPacket:', data);
-    droppedPacketCounter++;
   });
 
   ganglion.on('message', (message) => {
@@ -91,12 +68,11 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
       // } else {
       //
       // }
-      ganglion.streamStart().catch(errorFunc);
-      console.log('ready');
-
+    ganglion.streamStart().catch(errorFunc);
+    console.log('ready');
   });
 
-  ganglion.connect("Ganglion-58f3").catch(errorFunc);
+  ganglion.connect('Ganglion-58f3').catch(errorFunc);
 });
 
 function exitHandler (options, err) {
@@ -115,7 +91,6 @@ function exitHandler (options, err) {
     ganglion.removeAllListeners('ganglionFound');
     ganglion.removeAllListeners('ready');
     ganglion.destroyNoble();
-
   }
   if (err) console.log(err.stack);
   if (options.exit) {
@@ -135,14 +110,14 @@ function exitHandler (options, err) {
   }
 }
 
-if (process.platform === "win32") {
-  const rl = require("readline").createInterface({
+if (process.platform === 'win32') {
+  const rl = require('readline').createInterface({
     input: process.stdin,
     output: process.stdout
   });
 
-  rl.on("SIGINT", function () {
-    process.emit("SIGINT");
+  rl.on('SIGINT', function () {
+    process.emit('SIGINT');
   });
 }
 

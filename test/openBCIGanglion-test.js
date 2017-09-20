@@ -5,11 +5,11 @@ const chai = require('chai');
 const expect = chai.expect;
 const should = chai.should(); // eslint-disable-line no-unused-vars
 const Ganglion = require('../openBCIGanglion');
-const k = require('../openBCIConstants');
+const k = require('openbci-utilities').Constants;
 const chaiAsPromised = require('chai-as-promised');
 const sinonChai = require('sinon-chai');
 const bufferEqual = require('buffer-equal');
-const ganglionSample = require('../openBCIGanglionSample');
+const obciUtils = require('openbci-utilities').Utilities;
 const clone = require('clone');
 
 chai.use(chaiAsPromised);
@@ -20,13 +20,15 @@ describe('#ganglion-constructor', function () {
     const cb = (err) => {
       done(err);
     };
-    const ganglion_cb = new Ganglion(cb);
+    const ganglionCB = new Ganglion(cb);
+    expect(ganglionCB).to.exist();
   });
   it('should callback if options and callback', function (done) {
     const cb = (err) => {
       done(err);
     };
-    const ganglion_cb = new Ganglion({}, cb);
+    const ganglionCB = new Ganglion({}, cb);
+    expect(ganglionCB).to.exist();
   });
 });
 
@@ -118,82 +120,82 @@ describe('#ganglion', function () {
     describe('18bit', function () {
       it('should call proper functions if no dropped packets', function () {
         it('should work on uncompressed data', function () {
-          ganglion._processProcessSampleData(ganglionSample.sampleUncompressedData());
+          ganglion._processProcessSampleData(obciUtils.sampleUncompressedData());
           funcSpyUncompressedData.should.have.been.called;
           funcSpyDroppedPacket.should.not.have.been.called;
         });
 
         it('should work on compressed data', function () {
-          ganglion._processProcessSampleData(ganglionSample.sampleCompressedData(1));
+          ganglion._processProcessSampleData(obciUtils.sampleCompressedData(1));
           funcSpyCompressedData.should.have.been.called;
           funcSpyDroppedPacket.should.not.have.been.called;
         });
       });
       it('should recognize 0 packet dropped', function () {
         // Send the last buffer, set's ganglion._packetCounter
-        ganglion._processProcessSampleData(ganglionSample.sampleCompressedData(k.OBCIGanglionByteId18Bit.max));
+        ganglion._processProcessSampleData(obciUtils.sampleCompressedData(k.OBCIGanglionByteId18Bit.max));
         funcSpyCompressedData.should.have.been.called;
         const expectedMissedSample = k.OBCIGanglionByteIdUncompressed;
         // Call the function under test with one more then expected
-        const nextPacket = ganglionSample.sampleCompressedData(expectedMissedSample + 1);
+        const nextPacket = obciUtils.sampleCompressedData(expectedMissedSample + 1);
         ganglion._processProcessSampleData(nextPacket);
         funcSpyCompressedData.should.have.been.calledTwice;
         funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample);
       });
       it('should not find a dropped packet on wrap around', function () {
-        ganglion._processProcessSampleData(ganglionSample.sampleCompressedData(k.OBCIGanglionByteId18Bit.max - 1));
+        ganglion._processProcessSampleData(obciUtils.sampleCompressedData(k.OBCIGanglionByteId18Bit.max - 1));
         funcSpyCompressedData.should.have.been.calledOnce;
-        ganglion._processProcessSampleData(ganglionSample.sampleCompressedData(k.OBCIGanglionByteId18Bit.max));
+        ganglion._processProcessSampleData(obciUtils.sampleCompressedData(k.OBCIGanglionByteId18Bit.max));
         funcSpyCompressedData.should.have.been.calledTwice;
-        ganglion._processProcessSampleData(ganglionSample.sampleUncompressedData());
+        ganglion._processProcessSampleData(obciUtils.sampleUncompressedData());
         funcSpyCompressedData.should.have.been.calledTwice;
         funcSpyUncompressedData.should.have.been.calledOnce;
-        ganglion._processProcessSampleData(ganglionSample.sampleCompressedData(k.OBCIGanglionByteIdUncompressed + 1));
+        ganglion._processProcessSampleData(obciUtils.sampleCompressedData(k.OBCIGanglionByteIdUncompressed + 1));
         funcSpyCompressedData.should.have.been.calledThrice;
         funcSpyDroppedPacket.should.not.have.been.called;
       });
       it('should recognize dropped packet 99', function () {
-        ganglion._processProcessSampleData(ganglionSample.sampleCompressedData(k.OBCIGanglionByteId18Bit.max - 1));
+        ganglion._processProcessSampleData(obciUtils.sampleCompressedData(k.OBCIGanglionByteId18Bit.max - 1));
         const expectedMissedSample = k.OBCIGanglionByteId18Bit.max;
         // Call the function under test with one more then expected
-        const nextPacket = ganglionSample.sampleUncompressedData();
+        const nextPacket = obciUtils.sampleUncompressedData();
         ganglion._processProcessSampleData(nextPacket);
         funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample);
       });
       it('should recognize dropped packet 98 and 99', function () {
-        ganglion._processProcessSampleData(ganglionSample.sampleCompressedData(k.OBCIGanglionByteId18Bit.max - 2));
+        ganglion._processProcessSampleData(obciUtils.sampleCompressedData(k.OBCIGanglionByteId18Bit.max - 2));
         const expectedMissedSample1 = k.OBCIGanglionByteId18Bit.max - 1;
         const expectedMissedSample2 = k.OBCIGanglionByteId18Bit.max;
         // Call the function under test with one more then expected
-        const nextPacket = ganglionSample.sampleUncompressedData();
+        const nextPacket = obciUtils.sampleUncompressedData();
         ganglion._processProcessSampleData(nextPacket);
         funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample1);
         funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample2);
       });
       it('should detect dropped packet 1 and process packet 2', function () {
         // Send the raw buffer, set's ganglion._packetCounter
-        ganglion._processProcessSampleData(ganglionSample.sampleUncompressedData());
+        ganglion._processProcessSampleData(obciUtils.sampleUncompressedData());
         const expectedMissedSample = k.OBCIGanglionByteIdUncompressed + 1;
         // Call the function under test with one more then expected
-        const nextPacket = ganglionSample.sampleCompressedData(expectedMissedSample + 1);
+        const nextPacket = obciUtils.sampleCompressedData(expectedMissedSample + 1);
         ganglion._processProcessSampleData(nextPacket);
         funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample);
       });
       it('should detect dropped packet 1 & 2 and add process packet 3', function () {
         // Send the last buffer, set's ganglion._packetCounter
-        ganglion._processProcessSampleData(ganglionSample.sampleUncompressedData());
+        ganglion._processProcessSampleData(obciUtils.sampleUncompressedData());
         const expectedMissedSample1 = k.OBCIGanglionByteIdUncompressed + 1;
         const expectedMissedSample2 = k.OBCIGanglionByteIdUncompressed + 2;
         // Call the function under test with two more then expected
-        const nextPacket = ganglionSample.sampleCompressedData(expectedMissedSample2 + 1);
+        const nextPacket = obciUtils.sampleCompressedData(expectedMissedSample2 + 1);
         ganglion._processProcessSampleData(nextPacket);
         funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample1);
         funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample2);
       });
       it('should emit a accel data array with counts', function () {
-        const bufAccelX = ganglionSample.sampleCompressedData(k.OBCIGanglionAccelAxisX);
-        const bufAccelY = ganglionSample.sampleCompressedData(k.OBCIGanglionAccelAxisY);
-        const bufAccelZ = ganglionSample.sampleCompressedData(k.OBCIGanglionAccelAxisZ);
+        const bufAccelX = obciUtils.sampleCompressedData(k.OBCIGanglionAccelAxisX);
+        const bufAccelY = obciUtils.sampleCompressedData(k.OBCIGanglionAccelAxisY);
+        const bufAccelZ = obciUtils.sampleCompressedData(k.OBCIGanglionAccelAxisZ);
         const expectedXCount = 0;
         const expectedYCount = 1;
         const expectedZCount = 2;
@@ -219,9 +221,9 @@ describe('#ganglion', function () {
         ganglion.removeListener('accelerometer', accelDataFunc);
       });
       it('should emit a accel data array with scaled values', function () {
-        const bufAccelX = ganglionSample.sampleCompressedData(k.OBCIGanglionAccelAxisX);
-        const bufAccelY = ganglionSample.sampleCompressedData(k.OBCIGanglionAccelAxisY);
-        const bufAccelZ = ganglionSample.sampleCompressedData(k.OBCIGanglionAccelAxisZ);
+        const bufAccelX = obciUtils.sampleCompressedData(k.OBCIGanglionAccelAxisX);
+        const bufAccelY = obciUtils.sampleCompressedData(k.OBCIGanglionAccelAxisY);
+        const bufAccelZ = obciUtils.sampleCompressedData(k.OBCIGanglionAccelAxisZ);
         const expectedXCount = 0;
         const expectedYCount = 1;
         const expectedZCount = 2;
@@ -234,7 +236,7 @@ describe('#ganglion', function () {
           accelDataFuncCalled = true;
           expect(accelData.length).to.equal(dimensions);
           for (let i = 0; i < dimensions; i++) {
-            expect(accelData[i]).to.equal(i * 0.032);
+            expect(accelData[i]).to.equal(i * 0.016);
           }
         };
         ganglion.once('accelerometer', accelDataFunc);
@@ -249,74 +251,74 @@ describe('#ganglion', function () {
     describe('19bit', function () {
       it('should call proper functions if no dropped packets', function () {
         it('should work on uncompressed data', function () {
-          ganglion._processProcessSampleData(ganglionSample.sampleUncompressedData());
+          ganglion._processProcessSampleData(obciUtils.sampleUncompressedData());
           funcSpyUncompressedData.should.have.been.called;
           funcSpyDroppedPacket.should.not.have.been.called;
         });
 
         it('should work on compressed data', function () {
-          ganglion._processProcessSampleData(ganglionSample.sampleCompressedData(k.OBCIGanglionByteId19Bit.min));
+          ganglion._processProcessSampleData(obciUtils.sampleCompressedData(k.OBCIGanglionByteId19Bit.min));
           funcSpyCompressedData.should.have.been.called;
           funcSpyDroppedPacket.should.not.have.been.called;
         });
       });
       it('should recognize packet 101 was dropped', function () {
         // Send the last buffer, set's ganglion._packetCounter
-        ganglion._processProcessSampleData(ganglionSample.sampleCompressedData(k.OBCIGanglionByteId19Bit.max));
+        ganglion._processProcessSampleData(obciUtils.sampleCompressedData(k.OBCIGanglionByteId19Bit.max));
         funcSpyCompressedData.should.have.been.called;
         const expectedMissedSample = k.OBCIGanglionByteIdUncompressed;
         // Call the function under test with one more then expected
-        const nextPacket = ganglionSample.sampleCompressedData(expectedMissedSample + 1);
+        const nextPacket = obciUtils.sampleCompressedData(expectedMissedSample + 1);
         ganglion._processProcessSampleData(nextPacket);
         funcSpyCompressedData.should.have.been.calledTwice;
         funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample);
       });
       it('should not find a dropped packet on wrap around', function () {
-        ganglion._processProcessSampleData(ganglionSample.sampleCompressedData(k.OBCIGanglionByteId19Bit.max - 1));
+        ganglion._processProcessSampleData(obciUtils.sampleCompressedData(k.OBCIGanglionByteId19Bit.max - 1));
         funcSpyCompressedData.should.have.been.calledOnce;
-        ganglion._processProcessSampleData(ganglionSample.sampleCompressedData(k.OBCIGanglionByteId19Bit.max));
+        ganglion._processProcessSampleData(obciUtils.sampleCompressedData(k.OBCIGanglionByteId19Bit.max));
         funcSpyCompressedData.should.have.been.calledTwice;
-        ganglion._processProcessSampleData(ganglionSample.sampleUncompressedData());
+        ganglion._processProcessSampleData(obciUtils.sampleUncompressedData());
         funcSpyCompressedData.should.have.been.calledTwice;
         funcSpyUncompressedData.should.have.been.calledOnce;
-        ganglion._processProcessSampleData(ganglionSample.sampleCompressedData(k.OBCIGanglionByteId19Bit.min));
+        ganglion._processProcessSampleData(obciUtils.sampleCompressedData(k.OBCIGanglionByteId19Bit.min));
         funcSpyCompressedData.should.have.been.calledThrice;
         funcSpyDroppedPacket.should.not.have.been.called;
       });
       it('should recognize dropped packet 199', function () {
-        ganglion._processProcessSampleData(ganglionSample.sampleCompressedData(k.OBCIGanglionByteId19Bit.max - 1));
+        ganglion._processProcessSampleData(obciUtils.sampleCompressedData(k.OBCIGanglionByteId19Bit.max - 1));
         const expectedMissedSample = k.OBCIGanglionByteId19Bit.max;
         // Call the function under test with one more then expected
-        const nextPacket = ganglionSample.sampleUncompressedData();
+        const nextPacket = obciUtils.sampleUncompressedData();
         ganglion._processProcessSampleData(nextPacket);
         funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample);
       });
       it('should recognize dropped packet 198 and 199', function () {
-        ganglion._processProcessSampleData(ganglionSample.sampleCompressedData(k.OBCIGanglionByteId19Bit.max - 2));
+        ganglion._processProcessSampleData(obciUtils.sampleCompressedData(k.OBCIGanglionByteId19Bit.max - 2));
         const expectedMissedSample1 = k.OBCIGanglionByteId19Bit.max - 1;
         const expectedMissedSample2 = k.OBCIGanglionByteId19Bit.max;
         // Call the function under test with one more then expected
-        const nextPacket = ganglionSample.sampleUncompressedData();
+        const nextPacket = obciUtils.sampleUncompressedData();
         ganglion._processProcessSampleData(nextPacket);
         funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample1);
         funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample2);
       });
       it('should detect dropped packet 101 and process packet 102', function () {
         // Send the raw buffer, set's ganglion._packetCounter
-        ganglion._processProcessSampleData(ganglionSample.sampleUncompressedData());
+        ganglion._processProcessSampleData(obciUtils.sampleUncompressedData());
         const expectedMissedSample = k.OBCIGanglionByteIdUncompressed + 1;
         // Call the function under test with one more then expected
-        const nextPacket = ganglionSample.sampleCompressedData(expectedMissedSample + 1);
+        const nextPacket = obciUtils.sampleCompressedData(expectedMissedSample + 1);
         ganglion._processProcessSampleData(nextPacket);
         funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample);
       });
       it('should detect dropped packet 101 & 1022 and add process packet 103', function () {
         // Send the last buffer, set's ganglion._packetCounter
-        ganglion._processProcessSampleData(ganglionSample.sampleUncompressedData());
+        ganglion._processProcessSampleData(obciUtils.sampleUncompressedData());
         const expectedMissedSample1 = k.OBCIGanglionByteIdUncompressed + 1;
         const expectedMissedSample2 = k.OBCIGanglionByteIdUncompressed + 2;
         // Call the function under test with two more then expected
-        const nextPacket = ganglionSample.sampleCompressedData(expectedMissedSample2 + 1);
+        const nextPacket = obciUtils.sampleCompressedData(expectedMissedSample2 + 1);
         ganglion._processProcessSampleData(nextPacket);
         funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample1);
         funcSpyDroppedPacket.should.have.been.calledWith(expectedMissedSample2);
@@ -346,39 +348,39 @@ describe('#ganglion', function () {
       funcSpyProcessedData.reset();
     });
     it('should route impedance channel 1 packet', function () {
-      ganglion._processBytes(ganglionSample.sampleImpedanceChannel1());
+      ganglion._processBytes(obciUtils.sampleImpedanceChannel1());
       funcSpyImpedanceData.should.have.been.calledOnce;
     });
     it('should route impedance channel 2 packet', function () {
-      ganglion._processBytes(ganglionSample.sampleImpedanceChannel2());
+      ganglion._processBytes(obciUtils.sampleImpedanceChannel2());
       funcSpyImpedanceData.should.have.been.calledOnce;
     });
     it('should route impedance channel 3 packet', function () {
-      ganglion._processBytes(ganglionSample.sampleImpedanceChannel3());
+      ganglion._processBytes(obciUtils.sampleImpedanceChannel3());
       funcSpyImpedanceData.should.have.been.calledOnce;
     });
     it('should route impedance channel 4 packet', function () {
-      ganglion._processBytes(ganglionSample.sampleImpedanceChannel4());
+      ganglion._processBytes(obciUtils.sampleImpedanceChannel4());
       funcSpyImpedanceData.should.have.been.calledOnce;
     });
     it('should route impedance channel reference packet', function () {
-      ganglion._processBytes(ganglionSample.sampleImpedanceChannelReference());
+      ganglion._processBytes(obciUtils.sampleImpedanceChannelReference());
       funcSpyImpedanceData.should.have.been.calledOnce;
     });
     it('should route multi packet data', function () {
-      ganglion._processBytes(ganglionSample.sampleMultiBytePacket(new Buffer('taco')));
+      ganglion._processBytes(obciUtils.sampleMultiBytePacket(new Buffer('taco')));
       funcSpyMultiBytePacket.should.have.been.calledOnce;
     });
     it('should route multi packet stop data', function () {
-      ganglion._processBytes(ganglionSample.sampleMultiBytePacketStop(new Buffer('taco')));
+      ganglion._processBytes(obciUtils.sampleMultiBytePacketStop(new Buffer('taco')));
       funcSpyMultiBytePacketStop.should.have.been.calledOnce;
     });
     it('should route other data packet', function () {
-      ganglion._processBytes(ganglionSample.sampleOtherData(new Buffer('blah')));
+      ganglion._processBytes(obciUtils.sampleOtherData(new Buffer('blah')));
       funcSpyOtherData.should.have.been.calledOnce;
     });
     it('should route processed data packet', function () {
-      ganglion._processBytes(ganglionSample.sampleUncompressedData());
+      ganglion._processBytes(obciUtils.sampleUncompressedData());
       funcSpyProcessedData.should.have.been.calledOnce;
     });
   });
@@ -466,7 +468,6 @@ describe('#ganglion', function () {
     // Makes sure the correct amount of events were called.
     expect(runningEventCount).to.equal(totalEvents);
   });
-
 });
 
 xdescribe('#noble', function () {

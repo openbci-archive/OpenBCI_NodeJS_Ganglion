@@ -8,7 +8,6 @@ const OpenBCIUtilities = require('openbci-utilities');
 const obciUtils = OpenBCIUtilities.Utilities;
 const k = OpenBCIUtilities.Constants;
 const obciDebug = OpenBCIUtilities.Debug;
-const OpenBCISimulator = OpenBCIUtilities.Simulator;
 const clone = require('clone');
 
 /**
@@ -626,7 +625,7 @@ Ganglion.prototype._disconnected = function () {
  * @private
  */
 Ganglion.prototype._nobleDestroy = function () {
-  if (noble)  {
+  if (noble) {
     noble.removeAllListeners(k.OBCINobleEmitterStateChange);
     noble.removeAllListeners(k.OBCINobleEmitterDiscover);
   }
@@ -657,7 +656,6 @@ Ganglion.prototype._nobleConnect = function (peripheral) {
     });
 
     this._peripheral.on(k.OBCINobleEmitterPeripheralServicesDiscover, (services) => {
-
       for (let i = 0; i < services.length; i++) {
         if (services[i].uuid === k.SimbleeUuidService) {
           this._rfduinoService = services[i];
@@ -675,11 +673,11 @@ Ganglion.prototype._nobleConnect = function (peripheral) {
         for (let i = 0; i < characteristics.length; i++) {
           // console.log(characteristics[i].uuid);
           if (characteristics[i].uuid === k.SimbleeUuidReceive) {
-            if (this.options.verbose) console.log("Found receiveCharacteristicUUID");
+            if (this.options.verbose) console.log('Found receiveCharacteristicUUID');
             this._receiveCharacteristic = characteristics[i];
           }
           if (characteristics[i].uuid === k.SimbleeUuidSend) {
-            if (this.options.verbose) console.log("Found sendCharacteristicUUID");
+            if (this.options.verbose) console.log('Found sendCharacteristicUUID');
             this._sendCharacteristic = characteristics[i];
           }
         }
@@ -884,7 +882,6 @@ Ganglion.prototype._processCompressedData = function (data) {
     }
     this.emit(k.OBCIEmitterSample, sample1);
     this.emit(k.OBCIEmitterSample, sample2);
-
   } else {
     this._decompressSamples(obciUtils.decompressDeltas19Bit(data.slice(k.OBCIGanglionPacket19Bit.dataStart, k.OBCIGanglionPacket19Bit.dataStop)));
 
@@ -989,7 +986,7 @@ Ganglion.prototype._droppedPacket = function (droppedPacketNumber) {
  * @param data {Buffer}
  * @private
  */
-Ganglion.prototype._processProcessSampleData = function(data) {
+Ganglion.prototype._processProcessSampleData = function (data) {
   const curByteId = parseInt(data[0]);
   const difByteId = curByteId - this._packetCounter;
 
@@ -1039,7 +1036,7 @@ Ganglion.prototype._processProcessSampleData = function(data) {
   this._processRouteSampleData(data);
 };
 
-Ganglion.prototype._processRouteSampleData = function(data) {
+Ganglion.prototype._processRouteSampleData = function (data) {
   if (parseInt(data[0]) === k.OBCIGanglionByteIdUncompressed) {
     this._processUncompressedData(data);
   } else {

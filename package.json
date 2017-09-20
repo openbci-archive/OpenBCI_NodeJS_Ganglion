@@ -7,7 +7,8 @@
     "connect-test": "node examples/ganglionConnectionTest/ganglionConnectionTest.js",
     "server": "node examples/ganglionServer/ganglionServer.js",
     "test": "semistandard | snazzy && mocha test",
-    "test-cov": "istanbul cover ./node_modules/mocha/bin/_mocha -- -R spec && codecov"
+    "test-cov": "istanbul cover ./node_modules/mocha/bin/_mocha -- -R spec && codecov",
+    "test-lint": "semistandard | snazzy"
   },
   "keywords": [
     "openbci",
