@@ -5,7 +5,7 @@ Complete over haul of the core of the application to use the OpenBCI utilities N
 ### Bug Fixes
 
 * Accel count value was wrong, was twice what it should have been.
-* Closes #36
+* Closes #36 (thanks @chyumin)
 
 ### Breaking Changes
 
