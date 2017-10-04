@@ -52,7 +52,7 @@ def initializeOutlet(interface):
     :return: StreamOutlet
         returns a labstreaminglayer StreamOutlet
     """
-    info = StreamInfo('OpenBCI_EEG', 'EEG', 4, 256, 'float32', 'openbci12345')
+    info = StreamInfo('OpenBCI_EEG', 'EEG', 4, 200, 'float32', 'openbci12345')
     outlet = StreamOutlet(info)
     return outlet
 
