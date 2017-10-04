@@ -14,7 +14,7 @@ Complete over haul of the core of the application to use the OpenBCI utilities N
 
 ## Beta 1
 
-Initial Beta Release
+Initial Beta Release. Adds linting!
 
 # v0.4.4
 
