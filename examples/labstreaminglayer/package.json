@@ -1,6 +1,6 @@
 {
   "name": "labstreaminglayer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "labstreaminglayer example",
   "main": "index.js",
   "scripts": {
@@ -18,9 +18,8 @@
   "author": "AJ Keller",
   "license": "MIT",
   "dependencies": {
-    "openbci-ganglion": "^0.4.3",
-    "zmq-prebuilt": "^2.1.0",
-    "noble": "1.7.0"
+    "openbci-ganglion": "^1.0.0",
+    "zmq-prebuilt": "^2.1.0"
   },
   "devEngines": {
     "node": "<=6.x",

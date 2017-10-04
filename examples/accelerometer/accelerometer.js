@@ -2,8 +2,7 @@ const Ganglion = require('../../openBCIGanglion');
 const k = require('openbci-utilities').Constants;
 const verbose = true;
 let ganglion = new Ganglion({
-  debug: true,
-  sendCounts: true,
+  debug: false,
   verbose: verbose
 }, (error) => {
   if (error) {
@@ -19,60 +18,40 @@ function errorFunc (err) {
   throw err;
 }
 
-const impedance = false;
-const accel = false;
+const accel = true;
 
 ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
   ganglion.searchStop().catch(errorFunc);
 
-  ganglion.on('sample', (sample) => {
-    /** Work with sample */
-    console.log(sample.sampleNumber);
-  });
+  // ganglion.on('sample', (sample) => {
+  //   console.log(sample.sampleNumber);
+  // });
 
   ganglion.on('close', () => {
     console.log('close event');
-  });
-
-  ganglion.on('droppedPacket', (data) => {
-    console.log('droppedPacket:', data);
   });
 
   ganglion.on('message', (message) => {
     console.log('message: ', message.toString());
   });
 
-  let lastVal = 0;
   ganglion.on('accelerometer', (accelData) => {
-    // Use accel array [0, 0, 0]
-    if (accelData[2] - lastVal > 1) {
-      console.log(`Diff: ${accelData[2] - lastVal}`);
-    }
-    lastVal = accelData[2];
-    // console.log(`counter: ${accelData[2]}`);
-  });
-
-  ganglion.on('impedance', (impedanceObj) => {
-    console.log(`channel ${impedanceObj.channelNumber} has impedance ${impedanceObj.impedanceValue}`);
+    console.log('accelData', accelData);
   });
 
   ganglion.once('ready', () => {
-      // if (accel) {
-      //     ganglion.accelStart()
-      //         .then(() => {
-      //             return ganglion.streamStart();
-      //         })
-      //         .catch(errorFunc);
-      // } else if (impedance) {
-      //     ganglion.impedanceStart().catch(errorFunc);
-      // } else {
-      //
-      // }
-    ganglion.streamStart().catch(errorFunc);
-    console.log('ready');
+    if (accel) {
+      ganglion.accelStart()
+              .then(() => {
+                return ganglion.streamStart();
+              })
+              .catch(errorFunc);
+    } else {
+      ganglion.streamStart().catch(errorFunc);
+    }
   });
 
-  ganglion.connect('Ganglion-58f3').catch(errorFunc);
+  ganglion.connect(peripheral).catch(errorFunc);
 });
 
 function exitHandler (options, err) {
@@ -95,9 +74,6 @@ function exitHandler (options, err) {
   if (err) console.log(err.stack);
   if (options.exit) {
     if (verbose) console.log('exit');
-    if (impedance) {
-      ganglion.impedanceStop().catch(console.log);
-    }
     if (ganglion.isSearching()) {
       ganglion.searchStop().catch(console.log);
     }
