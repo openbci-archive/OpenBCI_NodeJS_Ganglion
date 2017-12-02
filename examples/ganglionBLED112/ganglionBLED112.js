@@ -2,6 +2,7 @@ const Ganglion = require('../../openBCIGanglion');
 const k = require('openbci-utilities/dist/constants');
 const verbose = true;
 let ganglion = new Ganglion({
+  bled112: true,
   debug: true,
   sendCounts: true,
   verbose: verbose

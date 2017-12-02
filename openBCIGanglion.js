@@ -2,16 +2,18 @@
 const EventEmitter = require('events').EventEmitter;
 const _ = require('lodash');
 let noble;
+let SerialPort;
 const util = require('util');
 // Local imports
-const OpenBCIUtilities = require('openbci-utilities');
-const obciUtils = OpenBCIUtilities.Utilities;
-const k = OpenBCIUtilities.Constants;
-const obciDebug = OpenBCIUtilities.Debug;
+const { utilities, constants, debug } = require('openbci-utilities');
+const k = constants;
+const obciDebug = debug;
 const clone = require('clone');
 
 /**
  * @typedef {Object} InitializationObject Board optional configurations.
+ * @property {Boolean} bled112 Whether to use bled112 as bluetooth driver or default to first available. (Default `false`)
+ *
  * @property {Boolean} debug Print out a raw dump of bytes sent and received. (Default `false`)
  *
  * @property {Boolean} nobleAutoStart Automatically initialize `noble`. Subscribes to blue tooth state changes and such.
@@ -51,6 +53,7 @@ const clone = require('clone');
  * @private
  */
 const _options = {
+  bled112: false,
   debug: false,
   nobleAutoStart: true,
   nobleScanOnPowerOn: true,
@@ -153,8 +156,13 @@ function Ganglion (options, callback) {
   }
 
   try {
-    noble = require('noble');
-    if (this.options.nobleAutoStart) this._nobleInit(); // It get's the noble going
+    if (this.options.bled112) {
+      SerialPort = require('serialport');
+      this._bled112Init(); // It gets the serial port driver going
+    } else {
+      noble = require('noble');
+      if (this.options.nobleAutoStart) this._nobleInit(); // It get's the noble going
+    }
     if (callback) callback();
   } catch (e) {
     if (callback) callback(e);
@@ -231,7 +239,8 @@ Ganglion.prototype.connect = function (id) {
     if (_.isString(id)) {
       k.getPeripheralWithLocalName(this.ganglionPeripheralArray, id)
         .then((p) => {
-          return this._nobleConnect(p);
+          if (this.options.bled112) return this._bled112Connect(p);
+          else return this._nobleConnect(p);
         })
         .then(resolve)
         .catch(reject);
@@ -541,43 +550,6 @@ Ganglion.prototype.write = function (data) {
 
 // //////// //
 // PRIVATES //
-// //////// //
-/**
- * Builds a sample object from an array and sample number.
- * @param sampleNumber
- * @param rawData
- * @return {{sampleNumber: *}}
- * @private
- */
-Ganglion.prototype._buildSample = function (sampleNumber, rawData) {
-  let sample;
-  if (this.options.sendCounts) {
-    sample = obciUtils.newSampleNoScale(sampleNumber);
-    sample.channelDataCounts = rawData;
-  } else {
-    sample = obciUtils.newSample(sampleNumber);
-    for (let j = 0; j < k.OBCINumberOfChannelsGanglion; j++) {
-      sample.channelData.push(rawData[j] * k.OBCIGanglionScaleFactorPerCountVolts);
-    }
-  }
-  sample.timestamp = Date.now();
-  return sample;
-};
-
-/**
- * Utilize `receivedDeltas` to get actual count values.
- * @param receivedDeltas {Array} - An array of deltas
- *  of shape 2x4 (2 samples per packet and 4 channels per sample.)
- * @private
- */
-Ganglion.prototype._decompressSamples = function (receivedDeltas) {
-  // add the delta to the previous value
-  for (let i = 1; i < 3; i++) {
-    for (let j = 0; j < 4; j++) {
-      this._decompressedSamples[i][j] = this._decompressedSamples[i - 1][j] - receivedDeltas[i - 1][j];
-    }
-  }
-};
 
 /**
  * @description Called once when for any reason the ble connection is no longer open.
@@ -820,154 +792,26 @@ Ganglion.prototype._nobleScanStop = function () {
  */
 Ganglion.prototype._processBytes = function (data) {
   if (this.options.debug) obciDebug.debugBytes('<<', data);
-  this.lastPacket = data;
-  let byteId = parseInt(data[0]);
-  if (byteId <= k.OBCIGanglionByteId19Bit.max) {
-    this._processProcessSampleData(data);
-  } else {
-    switch (byteId) {
-      case k.OBCIGanglionByteIdMultiPacket:
-        this._processMultiBytePacket(data);
-        break;
-      case k.OBCIGanglionByteIdMultiPacketStop:
-        this._processMultiBytePacketStop(data);
-        break;
-      case k.OBCIGanglionByteIdImpedanceChannel1:
-      case k.OBCIGanglionByteIdImpedanceChannel2:
-      case k.OBCIGanglionByteIdImpedanceChannel3:
-      case k.OBCIGanglionByteIdImpedanceChannel4:
-      case k.OBCIGanglionByteIdImpedanceChannelReference:
-        this._processImpedanceData(data);
-        break;
-      default:
-        this._processOtherData(data);
+  this._rawDataPacketToSample.rawDataPacket = data;
+  const obj = utilities.parseGanglion(this._rawDataPacketToSample);
+  if (obj) {
+    if (Array.isArray(obj)) {
+      obj.forEach(sample => {
+        this.emit(k.OBCIEmitterSample, sample);
+      })
+    } else if (obj.hasOwnProperty('message')) {
+      this.emit(k.OBCIEmitterMessage, this._multiPacketBuffer);
+    } else if (obj.hasOwnProperty('impedanceValue')) {
+      this.emit('impedance', obj);
+    } else {
+      if (this.options.verbose) console.log('Ganglion.prototype._processBytes: Invalid return object', obj)
     }
   }
 };
 
-/**
- * Process an compressed packet of data.
- * @param data {Buffer}
- *  Data packet buffer from noble.
- * @private
- */
-Ganglion.prototype._processCompressedData = function (data) {
-  // Save the packet counter
-  this._packetCounter = parseInt(data[0]);
-
-  // Decompress the buffer into array
-  if (this._packetCounter <= k.OBCIGanglionByteId18Bit.max) {
-    this._decompressSamples(obciUtils.decompressDeltas18Bit(data.slice(k.OBCIGanglionPacket18Bit.dataStart, k.OBCIGanglionPacket18Bit.dataStop)));
-    const sample1 = this._buildSample(this._packetCounter * 2 - 1, this._decompressedSamples[1]);
-    const sample2 = this._buildSample(this._packetCounter * 2, this._decompressedSamples[2]);
-
-    switch (this._packetCounter % 10) {
-      case k.OBCIGanglionAccelAxisX:
-        this._accelArray[0] = this.options.sendCounts ? data.readInt8(k.OBCIGanglionPacket18Bit.auxByte - 1) : data.readInt8(k.OBCIGanglionPacket18Bit.auxByte - 1) * k.OBCIGanglionAccelScaleFactor;
-        break;
-      case k.OBCIGanglionAccelAxisY:
-        this._accelArray[1] = this.options.sendCounts ? data.readInt8(k.OBCIGanglionPacket18Bit.auxByte - 1) : data.readInt8(k.OBCIGanglionPacket18Bit.auxByte - 1) * k.OBCIGanglionAccelScaleFactor;
-        break;
-      case k.OBCIGanglionAccelAxisZ:
-        this._accelArray[2] = this.options.sendCounts ? data.readInt8(k.OBCIGanglionPacket18Bit.auxByte - 1) : data.readInt8(k.OBCIGanglionPacket18Bit.auxByte - 1) * k.OBCIGanglionAccelScaleFactor;
-        this.emit(k.OBCIEmitterAccelerometer, this._accelArray);
-        if (this.options.sendCounts) {
-          sample1.accelData = this._accelArray;
-        } else {
-          sample1.accelDataCounts = this._accelArray;
-        }
-        break;
-      default:
-        break;
-    }
-    this.emit(k.OBCIEmitterSample, sample1);
-    this.emit(k.OBCIEmitterSample, sample2);
-  } else {
-    this._decompressSamples(obciUtils.decompressDeltas19Bit(data.slice(k.OBCIGanglionPacket19Bit.dataStart, k.OBCIGanglionPacket19Bit.dataStop)));
-
-    const sample1 = this._buildSample((this._packetCounter - 100) * 2 - 1, this._decompressedSamples[1]);
-    const sample2 = this._buildSample((this._packetCounter - 100) * 2, this._decompressedSamples[2]);
-
-    this.emit(k.OBCIEmitterSample, sample1);
-    this.emit(k.OBCIEmitterSample, sample2);
-  }
-
-  // Rotate the 0 position for next time
-  for (let i = 0; i < k.OBCINumberOfChannelsGanglion; i++) {
-    this._decompressedSamples[0][i] = this._decompressedSamples[2][i];
-  }
-};
-
-/**
- * Process and emit an impedance value
- * @param data {Buffer}
- * @private
- */
-Ganglion.prototype._processImpedanceData = function (data) {
-  if (this.options.debug) obciDebug.debugBytes('Impedance <<< ', data);
-  const byteId = parseInt(data[0]);
-  let channelNumber;
-  switch (byteId) {
-    case k.OBCIGanglionByteIdImpedanceChannel1:
-      channelNumber = 1;
-      break;
-    case k.OBCIGanglionByteIdImpedanceChannel2:
-      channelNumber = 2;
-      break;
-    case k.OBCIGanglionByteIdImpedanceChannel3:
-      channelNumber = 3;
-      break;
-    case k.OBCIGanglionByteIdImpedanceChannel4:
-      channelNumber = 4;
-      break;
-    case k.OBCIGanglionByteIdImpedanceChannelReference:
-      channelNumber = 0;
-      break;
-  }
-
-  let output = {
-    channelNumber: channelNumber,
-    impedanceValue: 0
-  };
-
-  let end = data.length;
-
-  while (_.isNaN(Number(data.slice(1, end))) && end !== 0) {
-    end--;
-  }
-
-  if (end !== 0) {
-    output.impedanceValue = Number(data.slice(1, end));
-  }
-
-  this.emit('impedance', output);
-};
-
-/**
- * Used to stack multi packet buffers into the multi packet buffer. This is finally emitted when a stop packet byte id
- *  is received.
- * @param data {Buffer}
- *  The multi packet buffer.
- * @private
- */
-Ganglion.prototype._processMultiBytePacket = function (data) {
-  if (this._multiPacketBuffer) {
-    this._multiPacketBuffer = Buffer.concat([this._multiPacketBuffer, data.slice(k.OBCIGanglionPacket19Bit.dataStart, k.OBCIGanglionPacket19Bit.dataStop)]);
-  } else {
-    this._multiPacketBuffer = data.slice(k.OBCIGanglionPacket19Bit.dataStart, k.OBCIGanglionPacket19Bit.dataStop);
-  }
-};
-
-/**
- * Adds the `data` buffer to the multi packet buffer and emits the buffer as 'message'
- * @param data {Buffer}
- *  The multi packet stop buffer.
- * @private
- */
-Ganglion.prototype._processMultiBytePacketStop = function (data) {
-  this._processMultiBytePacket(data);
-  this.emit(k.OBCIEmitterMessage, this._multiPacketBuffer);
-  this.destroyMultiPacketBuffer();
+Ganglion.prototype._droppedPacket = function (droppedPacketNumber) {
+  this.emit(k.OBCIEmitterDroppedPacket, [droppedPacketNumber]);
+  this._droppedPacketCounter++;
 };
 
 Ganglion.prototype._resetDroppedPacketSystem = function () {
@@ -976,118 +820,136 @@ Ganglion.prototype._resetDroppedPacketSystem = function () {
   this._droppedPacketCounter = 0;
 };
 
-Ganglion.prototype._droppedPacket = function (droppedPacketNumber) {
-  this.emit(k.OBCIEmitterDroppedPacket, [droppedPacketNumber]);
-  this._droppedPacketCounter++;
+Ganglion.prototype._bled112Init = function (portName) {
+  return new Promise((resolve, reject) => {
+    if (this.options.verbose) console.log('Ganglion with BLED112 ready to go!');
+
+    this.portName = portName;
+    if (this.options.verbose) console.log('_bled112Init: using real board ' + portName);
+    this.serial = new SerialPort(portName, {
+      baudRate: 256000
+    }, (err) => {
+      if (err) reject(err);
+    });
+    this.serial.on('data', data => {
+      this._bled112ProcessBytes(data);
+    });
+    this.serial.once('open', () => {
+      if (this.options.verbose) console.log('Serial Port Open');
+    });
+    this.serial.once('close', () => {
+      if (this.options.verbose) console.log('Serial Port Closed');
+      // 'close' is emitted in _disconnected()
+      this._bled112Disconnected();
+    });
+    this.serial.once('error', (err) => {
+      if (this.options.verbose) console.log('Serial Port Error');
+      this.emit('error', err);
+      this._bled112Disconnected(err);
+    });
+  });
+};
+
+Ganglion.prototype._bled112Connect = function (p) {
+  return new Promise((resolve, reject) => {
+    if (this.isConnected()) return reject(Error('already connected!'));
+
+
+  })
 };
 
 /**
- * Checks for dropped packets
- * @param data {Buffer}
+ * @description Called once when for any reason the ble connection is no longer open.
  * @private
  */
-Ganglion.prototype._processProcessSampleData = function (data) {
-  const curByteId = parseInt(data[0]);
-  const difByteId = curByteId - this._packetCounter;
+Ganglion.prototype._bled112Disconnected = function () {
+  this._streaming = false;
+  this._connected = false;
 
-  if (this._firstPacket) {
-    this._firstPacket = false;
-    this._processRouteSampleData(data);
-    return;
-  }
+  this.serial.removeAllListeners('close');
+  this.serial.removeAllListeners('error');
+  this.serial.removeAllListeners('data');
+  this.serial = null;
 
-  // Wrap around situation
-  if (difByteId < 0) {
-    if (this._packetCounter <= k.OBCIGanglionByteId18Bit.max) {
-      if (this._packetCounter === k.OBCIGanglionByteId18Bit.max) {
-        if (curByteId !== k.OBCIGanglionByteIdUncompressed) {
-          this._droppedPacket(curByteId - 1);
-        }
+  if (this.options.verbose) console.log(`Private BLED112 disconnect clean up`);
+
+  this.emit('close');
+};
+
+Ganglion.prototype._bled112ProcessBytes = function(data) {
+  if (this.options.debug) obciDebug.debug('<<', data);
+
+};
+
+/**
+ * Call to perform a scan to get a list of peripherals.
+ * @returns {global.Promise|Promise}
+ * @private
+ */
+Ganglion.prototype._bled112ScanStart = function () {
+  return new Promise((resolve, reject) => {
+    if (this.isSearching()) return reject(k.OBCIErrorNobleAlreadyScanning);
+    if (!this._nobleReady()) return reject(k.OBCIErrorNobleNotInPoweredOnState);
+
+    this.peripheralArray = [];
+    noble.once(k.OBCINobleEmitterScanStart, () => {
+      if (this.options.verbose) console.log('Scan started');
+      this._scanning = true;
+      this.emit(k.OBCINobleEmitterScanStart);
+      resolve();
+    });
+    // Only look so simblee ble devices and allow duplicates (multiple ganglions)
+    // noble.startScanning([k.SimbleeUuidService], true);
+    noble.startScanning([], false);
+  });
+};
+
+/**
+ * Stop an active scan
+ * @return {global.Promise|Promise}
+ * @private
+ */
+Ganglion.prototype._bled112ScanStop = function () {
+  return new Promise((resolve, reject) => {
+    if (!this.isSearching()) return reject(k.OBCIErrorNobleNotAlreadyScanning);
+    if (this.options.verbose) console.log(`Stopping scan`);
+
+    this.serial.write(new Buffer([0x00, 0x00, 0x06, 0x04]));
+
+    noble.once(k.OBCINobleEmitterScanStop, () => {
+      this._scanning = false;
+      this.emit(k.OBCINobleEmitterScanStop);
+      if (this.options.verbose) console.log('Scan stopped');
+      resolve();
+    });
+    // Stop noble from scanning
+    noble.stopScanning();
+  });
+};
+
+/**
+ * @description Should be used to send data to the board
+ * @param data {Buffer | Buffer2} - The data to write out
+ * @returns {Promise} if signal was able to be sent
+ * @author AJ Keller (@pushtheworldllc)
+ */
+Ganglion.prototype._bled112WriteAndDrain = function (data) {
+  if (this.options.debug) obciDebug.debugBytes('>>>', data);
+
+  return new Promise((resolve, reject) => {
+    if (!this.isConnected()) return reject(Error('Serial port not open'));
+    this.serial.write(data, (error) => {
+      if (error) {
+        console.log('Error [writeAndDrain]: ' + error);
+        reject(error);
       } else {
-        let tempCounter = this._packetCounter + 1;
-        while (tempCounter <= k.OBCIGanglionByteId18Bit.max) {
-          this._droppedPacket(tempCounter);
-          tempCounter++;
-        }
+        this.serial.drain(function () {
+          resolve();
+        });
       }
-    } else if (this._packetCounter === k.OBCIGanglionByteId19Bit.max) {
-      if (curByteId !== k.OBCIGanglionByteIdUncompressed) {
-        this._droppedPacket(curByteId - 1);
-      }
-    } else {
-      let tempCounter = this._packetCounter + 1;
-      while (tempCounter <= k.OBCIGanglionByteId19Bit.max) {
-        this._droppedPacket(tempCounter);
-        tempCounter++;
-      }
-    }
-  } else if (difByteId > 1) {
-    if (this._packetCounter === k.OBCIGanglionByteIdUncompressed && curByteId === k.OBCIGanglionByteId19Bit.min) {
-      this._processRouteSampleData(data);
-      return;
-    } else {
-      let tempCounter = this._packetCounter + 1;
-      while (tempCounter < curByteId) {
-        this._droppedPacket(tempCounter);
-        tempCounter++;
-      }
-    }
-  }
-  this._processRouteSampleData(data);
+    });
+  });
 };
 
-Ganglion.prototype._processRouteSampleData = function (data) {
-  if (parseInt(data[0]) === k.OBCIGanglionByteIdUncompressed) {
-    this._processUncompressedData(data);
-  } else {
-    this._processCompressedData(data);
-  }
-};
-
-/**
- * The default route when a ByteId is not recognized.
- * @param data {Buffer}
- * @private
- */
-Ganglion.prototype._processOtherData = function (data) {
-  obciDebug.debugBytes('OtherData <<< ', data);
-};
-
-/**
- * Process an uncompressed packet of data.
- * @param data {Buffer}
- *  Data packet buffer from noble.
- * @private
- */
-Ganglion.prototype._processUncompressedData = function (data) {
-  let start = 1;
-
-  // Resets the packet counter back to zero
-  this._packetCounter = k.OBCIGanglionByteIdUncompressed;  // used to find dropped packets
-  data.copy(this._rawDataPacketToSample.rawDataPacket, 2);
-
-  for (let i = 0; i < 4; i++) {
-    this._decompressedSamples[0][i] = interpret24bitAsInt32(data, start);  // seed the decompressor
-    start += 3;
-  }
-
-  const newSample = this._buildSample(0, this._decompressedSamples[0]);
-  this.emit(k.OBCIEmitterSample, newSample);
-};
 
 module.exports = Ganglion;
-
-function interpret24bitAsInt32 (byteArray, index) {
-  // little endian
-  let newInt = (
-    ((0xFF & byteArray[index]) << 16) |
-    ((0xFF & byteArray[index + 1]) << 8) |
-    (0xFF & byteArray[index + 2])
-  );
-  if ((newInt & 0x00800000) > 0) {
-    newInt |= 0xFF000000;
-  } else {
-    newInt &= 0x00FFFFFF;
-  }
-  return newInt;
-}
