@@ -9,6 +9,7 @@ const { utilities, constants, debug } = require('openbci-utilities');
 const k = constants;
 const obciDebug = debug;
 const clone = require('clone');
+const bufferEqual = require('buffer-equal');
 
 /**
  * @typedef {Object} InitializationObject Board optional configurations.
@@ -126,6 +127,7 @@ function Ganglion (options, callback) {
 
   /** Private Properties (keep alphabetical) */
   this._accelArray = [0, 0, 0];
+  this._bled112Connected = false;
   this._connected = false;
   this._decompressedSamples = new Array(3);
   this._droppedPacketCounter = 0;
@@ -824,9 +826,9 @@ Ganglion.prototype._bled112Init = function (portName) {
   return new Promise((resolve, reject) => {
     if (this.options.verbose) console.log('Ganglion with BLED112 ready to go!');
 
-    this.portName = portName;
-    if (this.options.verbose) console.log('_bled112Init: using real board ' + portName);
-    this.serial = new SerialPort(portName, {
+    this.portName = portName || '/dev/tty.usbmodem1';
+    if (this.options.verbose) console.log('_bled112Init: using real board ' + this.portName);
+    this.serial = new SerialPort(this.portName, {
       baudRate: 256000
     }, (err) => {
       if (err) reject(err);
@@ -835,7 +837,17 @@ Ganglion.prototype._bled112Init = function (portName) {
       this._bled112ProcessBytes(data);
     });
     this.serial.once('open', () => {
+      this._bled112Connected = true;
       if (this.options.verbose) console.log('Serial Port Open');
+      if (this.options.nobleScanOnPowerOn) {
+        this._bled112ScanStart()
+          .then(() => {
+            if (this.options.verbose) console.log('On serial port open start scan success');
+          })
+          .catch((err) => {
+            if (this.options.verbose) console.log('On serial port open start scan error', err.message);
+          })
+      }
     });
     this.serial.once('close', () => {
       if (this.options.verbose) console.log('Serial Port Closed');
@@ -854,6 +866,28 @@ Ganglion.prototype._bled112Connect = function (p) {
   return new Promise((resolve, reject) => {
     if (this.isConnected()) return reject(Error('already connected!'));
 
+    this.serial.write(new Buffer(
+      [
+        0x00,
+        0x0f,
+        0x06,
+        0x03,
+        p.mac[0],
+        p.mac[1],
+        p.mac[2],
+        p.mac[3],
+        p.mac[4],
+        p.mac[5],
+        0x01,
+        0x3C,
+        0x00,
+        0x4C,
+        0x00,
+        0x64,
+        0x00,
+        0x00,
+        0x00
+      ]));
 
   })
 };
@@ -865,6 +899,7 @@ Ganglion.prototype._bled112Connect = function (p) {
 Ganglion.prototype._bled112Disconnected = function () {
   this._streaming = false;
   this._connected = false;
+  this._bled112Connected = true;
 
   this.serial.removeAllListeners('close');
   this.serial.removeAllListeners('error');
@@ -877,9 +912,16 @@ Ganglion.prototype._bled112Disconnected = function () {
 };
 
 Ganglion.prototype._bled112ProcessBytes = function(data) {
-  if (this.options.debug) obciDebug.debug('<<', data);
+  const bleRspGapDiscoverNoError = new Buffer([0x00, 0x02, 0x06, 0x02, 0x00, 0x00]);
+  const bleEvtGapScanResponse = new Buffer([0x80, 0x1A, 0xA0, 0x60, 0x00]);
 
+  if (this.options.debug) obciDebug.debug('<<', data);
+  if (bufferEqual())
 };
+
+Ganglion.prototype._bled112Ready = function() {
+  return this._bled112Connected;
+}
 
 /**
  * Call to perform a scan to get a list of peripherals.
@@ -892,15 +934,13 @@ Ganglion.prototype._bled112ScanStart = function () {
     if (!this._nobleReady()) return reject(k.OBCIErrorNobleNotInPoweredOnState);
 
     this.peripheralArray = [];
-    noble.once(k.OBCINobleEmitterScanStart, () => {
-      if (this.options.verbose) console.log('Scan started');
-      this._scanning = true;
-      this.emit(k.OBCINobleEmitterScanStart);
-      resolve();
-    });
-    // Only look so simblee ble devices and allow duplicates (multiple ganglions)
-    // noble.startScanning([k.SimbleeUuidService], true);
-    noble.startScanning([], false);
+
+
+    this._bled112WriteAndDrain(new Buffer([0x00, 0x01, 0x06, 0x02, 0x02]))
+      .catch((err) => {
+        reject(err);
+      })
+
   });
 };
 
@@ -910,21 +950,10 @@ Ganglion.prototype._bled112ScanStart = function () {
  * @private
  */
 Ganglion.prototype._bled112ScanStop = function () {
-  return new Promise((resolve, reject) => {
-    if (!this.isSearching()) return reject(k.OBCIErrorNobleNotAlreadyScanning);
-    if (this.options.verbose) console.log(`Stopping scan`);
+  if (!this.isSearching()) return Promise.reject(k.OBCIErrorNobleNotAlreadyScanning);
+  if (this.options.verbose) console.log(`Stopping scan`);
 
-    this.serial.write(new Buffer([0x00, 0x00, 0x06, 0x04]));
-
-    noble.once(k.OBCINobleEmitterScanStop, () => {
-      this._scanning = false;
-      this.emit(k.OBCINobleEmitterScanStop);
-      if (this.options.verbose) console.log('Scan stopped');
-      resolve();
-    });
-    // Stop noble from scanning
-    noble.stopScanning();
-  });
+  return this._bled112WriteAndDrain(new Buffer([0x00, 0x00, 0x06, 0x04]));
 };
 
 /**
