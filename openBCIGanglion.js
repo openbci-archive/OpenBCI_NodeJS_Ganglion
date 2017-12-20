@@ -133,7 +133,6 @@ function Ganglion (options, callback) {
   this._droppedPacketCounter = 0;
   this._firstPacket = true;
   this._localName = null;
-  this._multiPacketBuffer = null;
   this._packetCounter = k.OBCIGanglionByteId18Bit.max;
   this._peripheral = null;
   this._rawDataPacketToSample = k.rawDataToSampleObjectDefault(k.numberOfChannelsForBoardType(k.OBCIBoardGanglion));
@@ -267,7 +266,7 @@ Ganglion.prototype.destroyNoble = function () {
  * Destroys the multi packet buffer.
  */
 Ganglion.prototype.destroyMultiPacketBuffer = function () {
-  this._multiPacketBuffer = null;
+  this._rawDataPacketToSample.multiPacketBuffer = null;
 };
 
 /**
@@ -322,7 +321,7 @@ Ganglion.prototype.getLocalName = function () {
  * @return {null|Buffer} - Can be null if no multi packets received.
  */
 Ganglion.prototype.getMutliPacketBuffer = function () {
-  return this._multiPacketBuffer;
+  return this._rawDataPacketToSample.multiPacketBuffer;
 };
 
 /**
@@ -802,7 +801,7 @@ Ganglion.prototype._processBytes = function (data) {
         this.emit(k.OBCIEmitterSample, sample);
       })
     } else if (obj.hasOwnProperty('message')) {
-      this.emit(k.OBCIEmitterMessage, this._multiPacketBuffer);
+      this.emit(k.OBCIEmitterMessage, obj.message);
     } else if (obj.hasOwnProperty('impedanceValue')) {
       this.emit('impedance', obj);
     } else {
@@ -916,12 +915,19 @@ Ganglion.prototype._bled112ProcessBytes = function(data) {
   const bleEvtGapScanResponse = new Buffer([0x80, 0x1A, 0xA0, 0x60, 0x00]);
 
   if (this.options.debug) obciDebug.debug('<<', data);
-  if (bufferEqual())
+  if (bufferEqual(data.slice(0, bleRspGapDiscoverNoError.byteLength), bleRspGapDiscoverNoError)) {
+    return this._bled112DeviceFound(data);
+  }
+};
+
+Ganglion.prototype._bled112DeviceFound = function(data) {
+  const rssi = data[4];
+  const mac = data.slice(6);
 };
 
 Ganglion.prototype._bled112Ready = function() {
   return this._bled112Connected;
-}
+};
 
 /**
  * Call to perform a scan to get a list of peripherals.

@@ -18,6 +18,7 @@
   "author": "AJ Keller <aj@pushtheworld.us> (www.openbci.com)",
   "license": "MIT",
   "dependencies": {
+    "buffer": "^5.0.8",
     "buffer-equal": "^1.0.0",
     "clone": "^2.0.0",
     "lodash": "^4.16.6",
