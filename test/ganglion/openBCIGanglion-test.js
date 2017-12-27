@@ -89,25 +89,26 @@ describe('#ganglion', function () {
       const rawBuf = new Buffer([0x80, 0x10, 0x03, 0x00, 0x01, 0x05, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0x3C, 0x00, 0x64, 0x00, 0x00, 0x00, 0xFF]);
 
       const expectedConnection = 1;
+      const expectedFlags = 5;
       const expectedAddressType = 1;
-      const expectedAdvertiseDataString = 'Ganglion-54ca';
-      const expectedAdvertiseDataRaw = new Buffer([0x0E, 0x09, 0x47, 0x61, 0x6E, 0x67, 0x6C, 0x69, 0x6F, 0x6E, 0x2D, 0x35, 0x34, 0x63, 0x61]);
-      const expectedBond = 255;
-      const expectedPacketType = 0;
-      const expectedRSSI = -51;
+      const expectedConnectionInterval = 60;
+      const expectedTimeout = 100;
+      const expectedLatency = 0;
+      const expectedBonding = 255;
       const expectedSender = new Buffer([0xE9, 0x53, 0x00, 0xCE, 0x66, 0xD9]);
 
       const expectedOutput = {
         addressType: expectedAddressType,
-        advertisementDataString: expectedAdvertiseDataString,
-        advertisementDataRaw: expectedAdvertiseDataRaw,
-        bond: expectedBond,
-        packetType: expectedPacketType,
-        rssi: expectedRSSI,
-        sender: expectedSender
+        bonding: expectedBonding,
+        connection: expectedConnection,
+        connectionInterval: expectedConnectionInterval,
+        flags: expectedFlags,
+        latency: expectedLatency,
+        sender: expectedSender,
+        timeout: expectedTimeout
       };
 
-      const actualOutput = ganglion._bled112DeviceFound(rawBuf);
+      const actualOutput = ganglion._bled112ConnectionMade(rawBuf);
 
       expect(actualOutput).to.deep.equal(expectedOutput);
     });

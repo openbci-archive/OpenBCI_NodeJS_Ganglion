@@ -921,6 +921,9 @@ Ganglion.prototype._bled112ProcessBytes = function(data) {
   const bleEvtGapScanResponse = Buffer.from([0x80, 0x1A, 0xA0, 0x60, 0x00]);
   const bleRspGapConnectDirect = Buffer.from([0x00, 0x03, 0x06, 0x03]);
   const bleEvtConnectionStatus = Buffer.from(0x80, 0x10, 0x03, 0x00);
+  const bleRspAttclientReadByGroupType = Buffer.from([0x00, 0x03, 0x04, 0x01, 0x01, 0x00, 0x00]);
+  const bleEvtAttclientGroupFound = Buffer.from([0x80, 0x08, 0x04, 0x02, 0x01, 0x01]);
+  const bleEvtAttclientProcedureCompleted = Buffer.from([0x80, 0x05, 0x04, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00]);
   if (this.options.debug) obciDebug.debug('<<', data);
   if (bufferEqual(data.slice(0, bleRspGapDiscoverNoError.byteLength), bleRspGapDiscoverNoError)) {
     return this._bled112DeviceFound(data);
@@ -957,8 +960,58 @@ Ganglion.prototype._bled112DeviceFound = function(data) {
   }
 };
 
-Ganglion.prototype._bled112ConnectionMade = function(data) {
+/**
+ * @typedef {Object} BLEDConnectionMade
+ * @property {Number} addressType
+ * @property {Number} bonding
+ * @property {Number} connection
+ * @property {Number} connectionInterval
+ * @property {Number} flags
+ * @property {Number} latency
+ * @property {Buffer} sender
+ * @property {Number} timeout
+ */
 
+/**
+ * Sent after a connection has been made to device
+ * @param data {Buffer} -  20 byte buffer
+ * @returns BLEDConnectionMade
+ * @private
+ */
+Ganglion.prototype._bled112ConnectionMade = function(data) {
+  return {
+    addressType: data[12],
+    bonding: data[19],
+    connection: data[4],
+    connectionInterval: data[14] | data[13],
+    flags: data[5],
+    latency: data[18] | data[17],
+    sender: Buffer.from([data[11], data[10], data[9], data[8], data[7], data[6]]),
+    timeout: data[16] | data[15]
+  }
+};
+
+/**
+ * Tell the BLED112 to discover services
+ *  ble_smd_attclient_read_by_group_type
+ * @private
+ */
+Ganglion.prototype._bled112DiscoverServices = function () {
+  this.serial.write(Buffer.from(
+    [
+      0x00,
+      0x08,
+      0x04,
+      0x01,
+      0x01,
+      0x01,
+      0x00,
+      0xFF,
+      0xFF,
+      0x02,
+      0x00,
+      0x27
+    ]));
 };
 
 Ganglion.prototype._bled112Ready = function() {
