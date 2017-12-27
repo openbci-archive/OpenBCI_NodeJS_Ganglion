@@ -10,6 +10,7 @@ const k = constants;
 const obciDebug = debug;
 const clone = require('clone');
 const bufferEqual = require('buffer-equal');
+// const Buffer = require('buffer/');
 
 /**
  * @typedef {Object} InitializationObject Board optional configurations.
@@ -861,22 +862,27 @@ Ganglion.prototype._bled112Init = function (portName) {
   });
 };
 
+/**
+ * Connect to a BLE device
+ * @param p {BLED112Peripheral}
+ * @returns {Promise}
+ * @private
+ */
 Ganglion.prototype._bled112Connect = function (p) {
   return new Promise((resolve, reject) => {
     if (this.isConnected()) return reject(Error('already connected!'));
-
     this.serial.write(new Buffer(
       [
         0x00,
         0x0f,
         0x06,
         0x03,
-        p.mac[0],
-        p.mac[1],
-        p.mac[2],
-        p.mac[3],
-        p.mac[4],
-        p.mac[5],
+        p.sender[0],
+        p.sender[1],
+        p.sender[2],
+        p.sender[3],
+        p.sender[4],
+        p.sender[5],
         0x01,
         0x3C,
         0x00,
@@ -911,18 +917,48 @@ Ganglion.prototype._bled112Disconnected = function () {
 };
 
 Ganglion.prototype._bled112ProcessBytes = function(data) {
-  const bleRspGapDiscoverNoError = new Buffer([0x00, 0x02, 0x06, 0x02, 0x00, 0x00]);
-  const bleEvtGapScanResponse = new Buffer([0x80, 0x1A, 0xA0, 0x60, 0x00]);
-
+  const bleRspGapDiscoverNoError = Buffer.from([0x00, 0x02, 0x06, 0x02, 0x00, 0x00]);
+  const bleEvtGapScanResponse = Buffer.from([0x80, 0x1A, 0xA0, 0x60, 0x00]);
+  const bleRspGapConnectDirect = Buffer.from([0x00, 0x03, 0x06, 0x03]);
+  const bleEvtConnectionStatus = Buffer.from(0x80, 0x10, 0x03, 0x00);
   if (this.options.debug) obciDebug.debug('<<', data);
   if (bufferEqual(data.slice(0, bleRspGapDiscoverNoError.byteLength), bleRspGapDiscoverNoError)) {
     return this._bled112DeviceFound(data);
   }
 };
 
+/**
+ * @typedef {Object} BLED112Peripheral
+ * @property {Number} addressType
+ * @property {String} advertisementDataString - The string of the advertisement data, not the full ad data
+ * @property {Buffer} advertisementDataRaw - The entire end of ad data
+ * @property {Number} bond
+ * @property {Number} packetType -
+ * @property {Number} rssi - The RSSI which stands for receive signal strength indicator and is in db so it's negative,
+ *  and lower the better.
+ * @property {Buffer} sender The mac address
+ */
+
+/**
+ * Parse a ble_evt_gap_scan_response
+ * @param data
+ * @returns BLED112Peripheral
+ * @private
+ */
 Ganglion.prototype._bled112DeviceFound = function(data) {
-  const rssi = data[4];
-  const mac = data.slice(6);
+  return {
+    addressType: data[12],
+    advertisementDataString: data.slice(17).toString(),
+    advertisementDataRaw: data.slice(15),
+    bond: data[13],
+    packetType: data[5],
+    rssi: -(~(0xffffff00 | data[4]) + 1),
+    sender: Buffer.from([data[11], data[10], data[9], data[8], data[7], data[6]])
+  }
+};
+
+Ganglion.prototype._bled112ConnectionMade = function(data) {
+
 };
 
 Ganglion.prototype._bled112Ready = function() {
