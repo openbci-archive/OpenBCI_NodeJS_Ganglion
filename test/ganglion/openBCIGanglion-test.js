@@ -134,7 +134,7 @@ describe('#ganglion', function () {
       expect(actualOutput).to.deep.equal(expectedOutput);
     });
   });
-  describe('#_bled112GapConnectDirect', function () {
+  describe('#_bled112ConnectDirect', function () {
     it('should be able to get the connection result connection handle', function () {
       const rawBuf = Buffer.from([0x00, 0x03, 0x06, 0x03, 0x00, 0x00, 0x01]);
 
@@ -146,7 +146,7 @@ describe('#ganglion', function () {
         result: expectedResult
       };
 
-      const actualOutput = ganglion._bled112GapConnectDirect(rawBuf);
+      const actualOutput = ganglion._bled112ConnectDirect(rawBuf);
 
       expect(actualOutput).to.deep.equal(expectedOutput);
     });
@@ -176,7 +176,7 @@ describe('#ganglion', function () {
       expect(actualOutput).to.deep.equal(expectedOutput);
     });
   });
-  describe('#_bled112FindInformation', function () {
+  describe('#_bled112GetFindInformation', function () {
     it('should be able to set connection, start and end', function () {
       const expectedOutput = Buffer.from([0x00, 0x05, 0x04, 0x03, 0x00, 0x17, 0x00, 0x1E, 0x00]);
 
@@ -196,7 +196,36 @@ describe('#ganglion', function () {
         uuid: expectedUUID
       };
 
-      const actualOutput = ganglion._bled112FindInformation(groupService);
+      const actualOutput = ganglion._bled112GetFindInformation(groupService);
+
+      expect(actualOutput).to.deep.equal(expectedOutput);
+    });
+  });
+  describe('#_bled112GetConnectDirect', function () {
+    it('should get the connect direct response', function () {
+      const expectedOutput = Buffer.from([0x00, 0x0F, 0x06, 0x03, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0x3C, 0x00, 0x4C, 0x00, 0x64, 0x00, 0x00, 0x00]);
+
+      const expectedConnection = 1;
+      const expectedFlags = 5;
+      const expectedAddressType = 1;
+      const expectedConnectionInterval = 60;
+      const expectedTimeout = 100;
+      const expectedLatency = 0;
+      const expectedBonding = 255;
+      const expectedSender = Buffer.from([0xE9, 0x53, 0x00, 0xCE, 0x66, 0xD9]);
+
+      const bledConnection = {
+        addressType: expectedAddressType,
+        bonding: expectedBonding,
+        connection: expectedConnection,
+        connectionInterval: expectedConnectionInterval,
+        flags: expectedFlags,
+        latency: expectedLatency,
+        sender: expectedSender,
+        timeout: expectedTimeout
+      };
+
+      const actualOutput = ganglion._bled112GetConnectDirect(bledConnection);
 
       expect(actualOutput).to.deep.equal(expectedOutput);
     });
