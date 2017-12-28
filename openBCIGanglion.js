@@ -129,6 +129,7 @@ function Ganglion (options, callback) {
   /** Private Properties (keep alphabetical) */
   this._accelArray = [0, 0, 0];
   this._bled112Connected = false;
+  this._bled112Connection = 0;
   this._connected = false;
   this._decompressedSamples = new Array(3);
   this._droppedPacketCounter = 0;
@@ -863,6 +864,33 @@ Ganglion.prototype._bled112Init = function (portName) {
 };
 
 /**
+ * @typedef {Object} BLED112GroupService
+ * @property {number} connection
+ * @property {number} end
+ * @property {Buffer} endRaw
+ * @property {number} start
+ * @property {Buffer} startRaw
+ * @property {Buffer} uuid
+ */
+
+/**
+ * This is the event from 'service discover' and this has the uuid for the ganglion which is 0xFE84
+ * @param data
+ * @returns {BLED112GroupService}
+ * @private
+ */
+Ganglion.prototype._bled112GroupFound = function (data) {
+  return {
+    connection: data[4],
+    end: data[8] | data[7],
+    endRaw: Buffer.from([data[8], data[7]]),
+    start: data[6] | data[5],
+    startRaw: Buffer.from([data[6], data[5]]),
+    uuid: Buffer.from([data[11], data[10]])
+  }
+};
+
+/**
  * Connect to a BLE device
  * @param p {BLED112Peripheral}
  * @returns {Promise}
@@ -916,11 +944,21 @@ Ganglion.prototype._bled112Disconnected = function () {
   this.emit('close');
 };
 
+/**
+ *
+ * @param groupService {BLED112GroupService}
+ * @returns {Buffer}
+ * @private
+ */
+Ganglion.prototype._bled112FindInformation = function (groupService) {
+  return Buffer.from([0x00, 0x05, 0x04, 0x03, groupService.connection, groupService.startRaw[1], groupService.startRaw[0], groupService.endRaw[1], groupService.endRaw[0]]);
+};
+
 Ganglion.prototype._bled112ProcessBytes = function(data) {
-  const bleEvtConnectionStatus = Buffer.from(0x80, 0x10, 0x03, 0x00);
+  const bleEvtConnectionStatus = Buffer.from([0x80, 0x10, 0x03, 0x00]);
   const bleEvtAttclientFindInformationFound = Buffer.from([0x80, 0x06, 0x04, 0x04]);
   const bleEvtAttclientGroupFound = Buffer.from([0x80, 0x08, 0x04, 0x02, 0x01, 0x01]);
-  const bleEvtAttclientProcedureCompleted = Buffer.from([0x80, 0x05, 0x04, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00]);
+  const bleEvtAttclientProcedureCompleted = Buffer.from([0x80, 0x05, 0x04, 0x01]);
   const bleEvtGapScanResponse = Buffer.from([0x80, 0x1A, 0xA0, 0x60, 0x00]);
 
   const bleRspAttclientReadByGroupType = Buffer.from([0x00, 0x03, 0x04, 0x01, 0x01, 0x00, 0x00]);
@@ -1013,7 +1051,7 @@ Ganglion.prototype._bled112DiscoverServices = function () {
       0x08,
       0x04,
       0x01,
-      0x01,
+      this._bled112Connection,
       0x01,
       0x00,
       0xFF,
@@ -1048,8 +1086,23 @@ Ganglion.prototype._bled112FindInformationFound = function (data) {
   }
 };
 
-Ganglion.prototype._bled112GapConnectDirect = function (data) {
+/**
+ * @typedef {Object} BLED112GapConnectDirect
+ * @property {Number} connection
+ * @property {Buffer} result
+ */
 
+/**
+ * Parses a raw data for gap connect
+ * @param data
+ * @returns {BLED112GapConnectDirect}
+ * @private
+ */
+Ganglion.prototype._bled112GapConnectDirect = function (data) {
+  return {
+    connection: data[6],
+    result: Buffer.from([data[5], data[4]])
+  }
 };
 
 Ganglion.prototype._bled112AttributeWrite = function (atthandle) {

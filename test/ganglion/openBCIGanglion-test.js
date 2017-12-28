@@ -134,4 +134,71 @@ describe('#ganglion', function () {
       expect(actualOutput).to.deep.equal(expectedOutput);
     });
   });
+  describe('#_bled112GapConnectDirect', function () {
+    it('should be able to get the connection result connection handle', function () {
+      const rawBuf = Buffer.from([0x00, 0x03, 0x06, 0x03, 0x00, 0x00, 0x01]);
+
+      const expectedConnection = 1;
+      const expectedResult = Buffer.from([0x00, 0x00]);
+
+      const expectedOutput = {
+        connection: expectedConnection,
+        result: expectedResult
+      };
+
+      const actualOutput = ganglion._bled112GapConnectDirect(rawBuf);
+
+      expect(actualOutput).to.deep.equal(expectedOutput);
+    });
+  });
+  describe('#_bled112GroupFound', function () {
+    it('should be able to get the connection result connection handle', function () {
+      const rawBuf = Buffer.from([0x80, 0x08, 0x04, 0x02, 0x00, 0x17, 0x00, 0x1E, 0x00, 0x02, 0x84, 0xFE]);
+
+      const expectedConnection = 0;
+      const expectedEnd = 30;
+      const expectedEndRaw = Buffer.from([0x00, 0x1E]);
+      const expectedStart = 23;
+      const expectedStartRaw = Buffer.from([0x00, 0x17]);
+      const expectedUUID = Buffer.from([0xFE, 0x84]);
+
+      const expectedOutput = {
+        connection: expectedConnection,
+        end: expectedEnd,
+        endRaw: expectedEndRaw,
+        start: expectedStart,
+        startRaw: expectedStartRaw,
+        uuid: expectedUUID
+      };
+
+      const actualOutput = ganglion._bled112GroupFound(rawBuf);
+
+      expect(actualOutput).to.deep.equal(expectedOutput);
+    });
+  });
+  describe('#_bled112FindInformation', function () {
+    it('should be able to set connection, start and end', function () {
+      const expectedOutput = Buffer.from([0x00, 0x05, 0x04, 0x03, 0x00, 0x17, 0x00, 0x1E, 0x00]);
+
+      const expectedConnection = 0;
+      const expectedEnd = 30;
+      const expectedEndRaw = Buffer.from([0x00, 0x1E]);
+      const expectedStart = 23;
+      const expectedStartRaw = Buffer.from([0x00, 0x17]);
+      const expectedUUID = Buffer.from([0xFE, 0x84]);
+
+      const groupService = {
+        connection: expectedConnection,
+        end: expectedEnd,
+        endRaw: expectedEndRaw,
+        start: expectedStart,
+        startRaw: expectedStartRaw,
+        uuid: expectedUUID
+      };
+
+      const actualOutput = ganglion._bled112FindInformation(groupService);
+
+      expect(actualOutput).to.deep.equal(expectedOutput);
+    });
+  });
 });
