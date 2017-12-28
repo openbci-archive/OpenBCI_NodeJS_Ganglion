@@ -86,7 +86,7 @@ describe('#ganglion', function () {
   });
   describe('#_bled112ConnectionMade', function () {
     it('should be able to parse for data', function () {
-      const rawBuf = new Buffer([0x80, 0x10, 0x03, 0x00, 0x01, 0x05, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0x3C, 0x00, 0x64, 0x00, 0x00, 0x00, 0xFF]);
+      const rawBuf = Buffer.from([0x80, 0x10, 0x03, 0x00, 0x01, 0x05, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0x3C, 0x00, 0x64, 0x00, 0x00, 0x00, 0xFF]);
 
       const expectedConnection = 1;
       const expectedFlags = 5;
@@ -95,7 +95,7 @@ describe('#ganglion', function () {
       const expectedTimeout = 100;
       const expectedLatency = 0;
       const expectedBonding = 255;
-      const expectedSender = new Buffer([0xE9, 0x53, 0x00, 0xCE, 0x66, 0xD9]);
+      const expectedSender = Buffer.from([0xE9, 0x53, 0x00, 0xCE, 0x66, 0xD9]);
 
       const expectedOutput = {
         addressType: expectedAddressType,
@@ -109,6 +109,27 @@ describe('#ganglion', function () {
       };
 
       const actualOutput = ganglion._bled112ConnectionMade(rawBuf);
+
+      expect(actualOutput).to.deep.equal(expectedOutput);
+    });
+  });
+  describe('#_bled112FindInformationFound', function () {
+    it('should be able to get the handle and uuid from raw data', function () {
+      const rawBuf = Buffer.from([0x80, 0x06, 0x04, 0x04, 0x01, 0x1A, 0x00, 0x02, 0x02, 0x29]);
+
+      const expectedCharacteristicHandle = 26;
+      const expectedCharacteristicHandleRaw = Buffer.from([0x00, 0x1A]);
+      const expectedConnection = 1;
+      const expectedUUID = Buffer.from([0x29, 0x02]);
+
+      const expectedOutput = {
+        characteristicHandle: expectedCharacteristicHandle,
+        characteristicHandleRaw: expectedCharacteristicHandleRaw,
+        connection: expectedConnection,
+        uuid: expectedUUID
+      };
+
+      const actualOutput = ganglion._bled112FindInformationFound(rawBuf);
 
       expect(actualOutput).to.deep.equal(expectedOutput);
     });

@@ -877,12 +877,12 @@ Ganglion.prototype._bled112Connect = function (p) {
         0x0f,
         0x06,
         0x03,
-        p.sender[0],
-        p.sender[1],
-        p.sender[2],
-        p.sender[3],
-        p.sender[4],
         p.sender[5],
+        p.sender[4],
+        p.sender[3],
+        p.sender[2],
+        p.sender[1],
+        p.sender[0],
         0x01,
         0x3C,
         0x00,
@@ -917,13 +917,23 @@ Ganglion.prototype._bled112Disconnected = function () {
 };
 
 Ganglion.prototype._bled112ProcessBytes = function(data) {
-  const bleRspGapDiscoverNoError = Buffer.from([0x00, 0x02, 0x06, 0x02, 0x00, 0x00]);
-  const bleEvtGapScanResponse = Buffer.from([0x80, 0x1A, 0xA0, 0x60, 0x00]);
-  const bleRspGapConnectDirect = Buffer.from([0x00, 0x03, 0x06, 0x03]);
   const bleEvtConnectionStatus = Buffer.from(0x80, 0x10, 0x03, 0x00);
-  const bleRspAttclientReadByGroupType = Buffer.from([0x00, 0x03, 0x04, 0x01, 0x01, 0x00, 0x00]);
+  const bleEvtAttclientFindInformationFound = Buffer.from([0x80, 0x06, 0x04, 0x04]);
   const bleEvtAttclientGroupFound = Buffer.from([0x80, 0x08, 0x04, 0x02, 0x01, 0x01]);
   const bleEvtAttclientProcedureCompleted = Buffer.from([0x80, 0x05, 0x04, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00]);
+  const bleEvtGapScanResponse = Buffer.from([0x80, 0x1A, 0xA0, 0x60, 0x00]);
+
+  const bleRspAttclientReadByGroupType = Buffer.from([0x00, 0x03, 0x04, 0x01, 0x01, 0x00, 0x00]);
+  const bleRspGapDiscoverNoError = Buffer.from([0x00, 0x02, 0x06, 0x02, 0x00, 0x00]);
+  const bleRspGapConnectDirect = Buffer.from([0x00, 0x03, 0x06, 0x03]);
+
+  if (data[0] === 0x00) {
+
+  } else if (data[0] === 0x80) {
+
+  } else {
+
+  }
   if (this.options.debug) obciDebug.debug('<<', data);
   if (bufferEqual(data.slice(0, bleRspGapDiscoverNoError.byteLength), bleRspGapDiscoverNoError)) {
     return this._bled112DeviceFound(data);
@@ -1012,6 +1022,39 @@ Ganglion.prototype._bled112DiscoverServices = function () {
       0x00,
       0x27
     ]));
+};
+
+
+/**
+ * @typedef {Object} BLED112FindInformationFound
+ * @property {Number} characteristicHandle
+ * @property {Buffer} characteristicHandleRaw - The string of the advertisement data, not the full ad data
+ * @property {Number} connection - The entire end of ad data
+ * @property {Buffer} uuid
+ */
+
+/**
+ * Parse the information found raw data packet
+ * @param data
+ * @returns {BLED112FindInformationFound}
+ * @private
+ */
+Ganglion.prototype._bled112FindInformationFound = function (data) {
+  return {
+    characteristicHandle: data[6] | data[5],
+    characteristicHandleRaw: Buffer.from([data[6], data[5]]),
+    connection: data[4],
+    uuid: Buffer.from([data[9], data[8]])
+  }
+};
+
+Ganglion.prototype._bled112GapConnectDirect = function (data) {
+
+};
+
+Ganglion.prototype._bled112AttributeWrite = function (atthandle) {
+
+  const buf = Buffer.from([0x00, 0x05, 0x04, 0x05, 0x01, 0x1a, 0x00, 0x01, 0x01]);
 };
 
 Ganglion.prototype._bled112Ready = function() {
