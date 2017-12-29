@@ -830,8 +830,21 @@ const kOBCIEmitterBLED112EvtAttclientProcedureCompleted = 'bleEvtAttclientProced
 const kOBCIEmitterBLED112EvtGapScanResponse = 'bleEvtGapScanResponse';
 
 const kOBCIEmitterBLED112RspAttclientReadByGroupType = 'bleRspAttclientReadByGroupType';
+const kOBCIEmitterBLED112RspGapDiscoverError = 'bleRspGapDiscoverError';
 const kOBCIEmitterBLED112RspGapDiscoverNoError = 'bleRspGapDiscoverNoError';
 const kOBCIEmitterBLED112RspGapConnectDirect = 'bleRspGapConnectDirect';
+
+const bleEvtConnectionStatus = Buffer.from([0x80, 0x10, 0x03, 0x00]);
+const bleEvtAttclientFindInformationFound = Buffer.from([0x80, 0x06, 0x04, 0x04]);
+const bleEvtAttclientGroupFound = Buffer.from([0x80, 0x08, 0x04, 0x02]);
+const bleEvtAttclientProcedureCompleted = Buffer.from([0x80, 0x05, 0x04, 0x01]);
+const bleEvtGapScanResponse = Buffer.from([0x80, 0x1A, 0x06, 0x00]);
+
+const bleRspAttclientReadByGroupType = Buffer.from([0x00, 0x03, 0x04, 0x01]);
+const bleRspGapDiscover = Buffer.from([0x00, 0x02, 0x06, 0x02]);
+const bleRspGapConnectDirect = Buffer.from([0x00, 0x03, 0x06, 0x03]);
+
+const ganglionServiceID = Buffer.from([0xFE, 0x84]);
 
 /**
  * Call to init with a port name
@@ -928,6 +941,12 @@ Ganglion.prototype._bled112Init = function (portName) {
  */
 
 /**
+ * @typedef {Object} BLED112RspGroupType
+ * @property {Number} connection
+ * @property {Buffer} result
+ */
+
+/**
  * Connect to a BLE device
  * @param p {BLED112Peripheral}
  * @returns {Promise}
@@ -990,6 +1009,22 @@ Ganglion.prototype._bled112DeviceFound = function (data) {
     rssi: -(~(0xffffff00 | data[4]) + 1),
     sender: Buffer.from([data[11], data[10], data[9], data[8], data[7], data[6]])
   };
+};
+
+/**
+ * Clean up all the BLED112 emitters
+ * @private
+ */
+Ganglion.prototype.bled112CleanupEmitters = function () {
+  this.removeAllListeners(kOBCIEmitterBLED112RspGapDiscoverNoError);
+  this.removeAllListeners(kOBCIEmitterBLED112RspGapDiscoverError);
+  this.removeAllListeners(kOBCIEmitterBLED112RspAttclientReadByGroupType);
+  this.removeAllListeners(kOBCIEmitterBLED112RspGapConnectDirect);
+  this.removeAllListeners(kOBCIEmitterBLED112EvtGapScanResponse);
+  this.removeAllListeners(kOBCIEmitterBLED112EvtConnectionStatus);
+  this.removeAllListeners(kOBCIEmitterBLED112EvtAttclientFindInformationFound);
+  this.removeAllListeners(kOBCIEmitterBLED112EvtAttclientGroupFound);
+  this.removeAllListeners(kOBCIEmitterBLED112EvtAttclientProcedureCompleted);
 };
 
 /**
@@ -1097,60 +1132,90 @@ Ganglion.prototype._bled112GroupFound = function (data) {
 
 Ganglion.prototype._bled112ProcessBytes = function (data) {
   if (this.options.debug) obciDebug.debug('<<', data);
-  const bleEvtConnectionStatus = Buffer.from([0x80, 0x10, 0x03, 0x00]);
-  const bleEvtAttclientFindInformationFound = Buffer.from([0x80, 0x06, 0x04, 0x04]);
-  const bleEvtAttclientGroupFound = Buffer.from([0x80, 0x08, 0x04, 0x02, 0x01, 0x01]);
-  const bleEvtAttclientProcedureCompleted = Buffer.from([0x80, 0x05, 0x04, 0x01]);
-  const bleEvtGapScanResponse = Buffer.from([0x80, 0x1A, 0xA0, 0x60, 0x00]);
-
-  const bleRspAttclientReadByGroupType = Buffer.from([0x00, 0x03, 0x04, 0x01, 0x01]);
-  const bleRspGapDiscoverNoError = Buffer.from([0x00, 0x02, 0x06, 0x02]);
-  const bleRspGapConnectDirect = Buffer.from([0x00, 0x03, 0x06, 0x03]);
-
-  const ganglionServiceID = Buffer.from([0xFE, 0x84]);
-
   if (data[0] === 0x00) {
     if (data[1] === 0x02) {
-      if (bufferEqual(data.slice(0, bleRspGapDiscoverNoError.byteLength), bleRspGapDiscoverNoError)) {
-        if (data[])
+      if (bufferEqual(data.slice(0, bleRspGapDiscover.byteLength), bleRspGapDiscover)) {
+        const code = data[5] | data[4];
+        if (code === 0x0000) {
+          if (this.options.verbose) console.log('BLED112RspGapDiscoverNoError');
+          this.emit(kOBCIEmitterBLED112RspGapDiscoverNoError);
+        } else {
+          if (this.options.verbose) console.log('BLED112RspGapDiscoverError: ', code);
+          this.emit(kOBCIEmitterBLED112RspGapDiscoverError, code);
+        }
+        return data;
       }
     } else if (data[1] === 0x03) {
       if (bufferEqual(data.slice(0, bleRspAttclientReadByGroupType.byteLength), bleRspAttclientReadByGroupType)) {
-        const newGroupService = this._bled112GroupFound(data);
-        if (bufferEqual(newGroupService.uuid, ganglionServiceID)) {
-          this._bled112Service = newGroupService;
-          this.emit(kOBCIEmitterBLED112RspAttclientReadByGroupType, newGroupService);
-          return newGroupService;
-        }
+        if (this.options.verbose) console.log('BLED112RspAttclientReadByGroupType');
+        this.emit(kOBCIEmitterBLED112RspAttclientReadByGroupType);
+        return data;
       } else if (bufferEqual(data.slice(0, bleRspGapConnectDirect.byteLength), bleRspGapConnectDirect)) {
         const newConnection = this._bled112ConnectDirect(data);
+        if (this.options.verbose) console.log(`BLED112RspGapConnectDirect: ${JSON.stringify(newConnection)}`);
         this.emit(kOBCIEmitterBLED112RspGapConnectDirect, newConnection);
-
+        return newConnection;
       }
     }
   } else if (data[0] === 0x80) {
     if (bufferEqual(data.slice(0, bleEvtGapScanResponse.byteLength), bleEvtGapScanResponse)) {
       const newPeripheral = this._bled112DeviceFound(data);
       let peripheralFound = false;
-
       this.peripheralArray.forEach((peripheral) => {
         if (bufferEqual(peripheral.sender, newPeripheral.sender)) {
           peripheral.rssi = newPeripheral.rssi;
           peripheralFound = true;
         }
       });
-
       if (!peripheralFound) this.peripheralArray.push(newPeripheral);
-      this.emit()
-      return ;
+      if (this.options.verbose) console.log(`BLED112EvtGapScanResponse: ${JSON.stringify(newPeripheral)}`);
+      this.emit(kOBCIEmitterBLED112EvtGapScanResponse, newPeripheral);
+      return newPeripheral;
+    } else if (bufferEqual(data.slice(0, bleEvtConnectionStatus.byteLength), bleEvtConnectionStatus)) {
+      const newConnection = this._bled112ConnectionMade(data);
+      if (this.options.verbose) console.log(`BLED112EvtConnectionStatus: ${JSON.stringify(newConnection)}`);
+      this.emit(kOBCIEmitterBLED112EvtConnectionStatus, newConnection);
+      return newConnection;
+    } else if (bufferEqual(data.slice(0, bleEvtAttclientFindInformationFound.byteLength), bleEvtAttclientFindInformationFound)) {
+      const newInformation = this._bled112FindInformationFound(data);
+      if (this.options.verbose) console.log(`BLED112EvtAttclientFindInformationFound: ${JSON.stringify(newInformation)}`);
+      this.emit(kOBCIEmitterBLED112EvtAttclientFindInformationFound, newInformation);
+      return newInformation;
+    } else if (bufferEqual(data.slice(0, bleEvtAttclientGroupFound.byteLength), bleEvtAttclientGroupFound)) {
+      const newGroup = this._bled112GroupFound(data);
+      if (bufferEqual(newGroup.uuid, ganglionServiceID)) {
+        this._bled112Service = newGroup;
+        if (this.options.verbose) console.log(`BLED112EvtAttclientGroupFound: ${JSON.stringify(newGroup)}`);
+        this.emit(kOBCIEmitterBLED112EvtAttclientGroupFound, newGroup);
+        return newGroup;
+      }
+      if (this.options.verbose) console.log(`ERROR: BLED112EvtAttclientGroupFound: ${JSON.stringify(newGroup)}`);
+      return newGroup;
+    } else if (bufferEqual(data.slice(0, bleEvtAttclientProcedureCompleted.byteLength), bleEvtAttclientProcedureCompleted)) {
+      if (this.options.verbose) console.log('BLED112EvtAttclientProcedureCompleted');
+      this.emit(kOBCIEmitterBLED112EvtAttclientProcedureCompleted);
+      return data;
     }
   }
   if (this.options.verbose) console.log('Not able to identify the data');
   return data;
 };
 
-Ganglion.prototype._bled112Ready = function() {
+Ganglion.prototype._bled112Ready = function () {
   return this._bled112Connected;
+};
+
+/**
+ * Parse the response from group type
+ * @param data {Buffer}
+ * @returns {BLED112RspGroupType}
+ * @private
+ */
+Ganglion.prototype._bled112RspGroupType = function (data) {
+  return {
+    connection: data[4],
+    result: Buffer.from([data[6], data[5]])
+  };
 };
 
 /**
@@ -1165,12 +1230,10 @@ Ganglion.prototype._bled112ScanStart = function () {
 
     this.peripheralArray = [];
 
-
     this._bled112WriteAndDrain(new Buffer())
       .catch((err) => {
         reject(err);
-      })
-
+      });
   });
 };
 
@@ -1209,6 +1272,5 @@ Ganglion.prototype._bled112WriteAndDrain = function (data) {
     });
   });
 };
-
 
 module.exports = Ganglion;

@@ -8,10 +8,9 @@ const Ganglion = require('../../openBCIGanglion');
 const k = require('openbci-utilities/dist/constants');
 const chaiAsPromised = require('chai-as-promised');
 const sinonChai = require('sinon-chai');
-const bufferEqual = require('buffer-equal');
-const obciUtils = require('openbci-utilities/dist/utilities');
+// const bufferEqual = require('buffer-equal');
+// const obciUtils = require('openbci-utilities/dist/utilities');
 const clone = require('clone');
-
 
 chai.use(chaiAsPromised);
 chai.use(sinonChai);
@@ -47,7 +46,7 @@ describe('#ganglion', function () {
     simulatorInjectAlpha: true,
     simulatorInjectLineNoise: k.OBCISimulatorLineNoiseHz60,
     simulatorSampleRate: 200,
-    verbose: false,
+    verbose: false
   };
   const expectedProperties = clone(mockProperties);
   const ganglion = new Ganglion(mockProperties);
@@ -59,7 +58,7 @@ describe('#ganglion', function () {
   });
   describe('#_bled112DeviceFound', function () {
     it('should be able to parse for data', function () {
-      const rawBuf = new Buffer([0x80, 0x1A, 0x06, 0x00, 0xCD, 0x00, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0xFF, 0x0F, 0x0E, 0x09, 0x47, 0x61, 0x6E, 0x67, 0x6C, 0x69, 0x6F, 0x6E, 0x2D, 0x35, 0x34, 0x63, 0x61])
+      const rawBuf = new Buffer([0x80, 0x1A, 0x06, 0x00, 0xCD, 0x00, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0xFF, 0x0F, 0x0E, 0x09, 0x47, 0x61, 0x6E, 0x67, 0x6C, 0x69, 0x6F, 0x6E, 0x2D, 0x35, 0x34, 0x63, 0x61]);
 
       const expectedAddressType = 1;
       const expectedAdvertiseDataString = 'Ganglion-54ca';
@@ -226,6 +225,190 @@ describe('#ganglion', function () {
       };
 
       const actualOutput = ganglion._bled112GetConnectDirect(bledConnection);
+
+      expect(actualOutput).to.deep.equal(expectedOutput);
+    });
+  });
+  describe('#_bled112ProcessBytes', function () {
+    afterEach(function () {
+      ganglion.bled112CleanupEmitters();
+    });
+    // 'bleEvtConnectionStatus'
+    // 'bleEvtAttclientFindInformationFound'
+    // 'bleEvtAttclientGroupFound'
+    // 'bleEvtAttclientProcedureCompleted'
+    // 'bleEvtGapScanResponse'
+    // 'bleRspAttclientReadByGroupType'
+    // 'bleRspGapDiscoverError'
+    // 'bleRspGapDiscoverNoError'
+    // 'bleRspGapConnectDirect'
+    describe('BLED112EvtAttclientProcedureCompleted', function () {
+      const rawBuf = Buffer.from([0x80, 0x05, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00]);
+      it('emit', function (done) {
+        ganglion.once('bleEvtAttclientProcedureCompleted', () => {
+          done();
+        });
+        ganglion._bled112ProcessBytes(rawBuf);
+      });
+      it('returns', function () {
+        const retVal = ganglion._bled112ProcessBytes(rawBuf);
+        expect(retVal).to.not.equal(null);
+      });
+    });
+    describe('BLED112RspAttclientReadByGroupType', function () {
+      const rawBuf = Buffer.from([0x00, 0x03, 0x04, 0x01, 0x02, 0x00, 0x00]);
+      it('emit', function (done) {
+        ganglion.once('bleRspAttclientReadByGroupType', () => {
+          done();
+        });
+        ganglion._bled112ProcessBytes(rawBuf);
+      });
+      it('returns', function () {
+        const retVal = ganglion._bled112ProcessBytes(rawBuf);
+        expect(retVal).to.not.equal(null);
+      });
+    });
+    describe('BLED112EvtConnectionStatus', function () {
+      const rawBuf = Buffer.from([0x80, 0x10, 0x03, 0x00, 0x01, 0x05, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0x3C, 0x00, 0x64, 0x00, 0x00, 0x00, 0xFF]);
+      const fooBar = {'foo': 'bar'};
+      let funcStub;
+      before(() => {
+        funcStub = sinon.stub(ganglion, '_bled112ConnectionMade');
+        funcStub.returns(fooBar);
+      });
+      after(() => {
+        funcStub.reset();
+      });
+      it('emit', function (done) {
+        ganglion.once('bleEvtConnectionStatus', (obj) => {
+          expect(obj).to.deep.equal(fooBar);
+          done();
+        });
+        ganglion._bled112ProcessBytes(rawBuf);
+      });
+      it('returns', function () {
+        const retVal = ganglion._bled112ProcessBytes(rawBuf);
+        expect(retVal).to.equal(fooBar);
+      });
+    });
+    describe('BLED112EvtGapScanResponse', function () {
+      const rawBuf = new Buffer([0x80, 0x1A, 0x06, 0x00, 0xCD, 0x00, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0xFF, 0x0F, 0x0E, 0x09, 0x47, 0x61, 0x6E, 0x67, 0x6C, 0x69, 0x6F, 0x6E, 0x2D, 0x35, 0x34, 0x63, 0x61]);
+      const mockPeripheral11 = {'rssi': -50, 'sender': Buffer.from([0, 1, 2, 3, 4, 5])};
+      const mockPeripheral12 = {'rssi': -51, 'sender': Buffer.from([0, 1, 2, 3, 4, 5])};
+      const mockPeripheral2 = {'rssi': -60, 'sender': Buffer.from([6, 7, 8, 9, 10, 11])};
+      let funcStub;
+      before(() => {
+        funcStub = sinon.stub(ganglion, '_bled112DeviceFound');
+      });
+      beforeEach(() => {
+        ganglion.peripheralArray = [];
+        funcStub.returns(mockPeripheral11);
+      });
+      after(() => {
+        funcStub.reset();
+      });
+      it('emit', function (done) {
+        ganglion.once('bleEvtGapScanResponse', (obj) => {
+          expect(obj).to.deep.equal(mockPeripheral11);
+          done();
+        });
+        ganglion._bled112ProcessBytes(rawBuf);
+      });
+      it('returns', function () {
+        const retVal = ganglion._bled112ProcessBytes(rawBuf);
+        expect(retVal).to.equal(mockPeripheral11);
+        expect(ganglion.peripheralArray[0]).to.deep.equal(mockPeripheral11);
+        funcStub.returns(mockPeripheral12);
+        ganglion._bled112ProcessBytes(rawBuf);
+        expect(ganglion.peripheralArray[0]).to.deep.equal(mockPeripheral12);
+        funcStub.returns(mockPeripheral2);
+        ganglion._bled112ProcessBytes(rawBuf);
+        expect(ganglion.peripheralArray[1]).to.deep.equal(mockPeripheral2);
+      });
+    });
+    describe('BLED112RspGapConnectDirect', function () {
+      const rawBuf = Buffer.from([0x00, 0x03, 0x06, 0x03, 0x00, 0x00, 0x01]);
+      const fooBar = {'foo': 'bar'};
+      let funcStub;
+      before(() => {
+        funcStub = sinon.stub(ganglion, '_bled112ConnectDirect');
+        funcStub.returns(fooBar);
+      });
+      after(() => {
+        funcStub.reset();
+      });
+      it('emit', function (done) {
+        ganglion.once('bleRspGapConnectDirect', (obj) => {
+          expect(obj).to.deep.equal(fooBar);
+          done();
+        });
+        ganglion._bled112ProcessBytes(rawBuf);
+      });
+      it('returns', function () {
+        const retVal = ganglion._bled112ProcessBytes(rawBuf);
+        expect(retVal).to.equal(fooBar);
+      });
+    });
+    describe('BLED112EvtAttclientFindInformationFound', function () {
+      const rawBuf = Buffer.from([0x80, 0x06, 0x04, 0x04, 0x01, 0x1A, 0x00, 0x02, 0x02, 0x29]);
+      const fooBar = {'foo': 'bar'};
+      let funcStub;
+      before(() => {
+        funcStub = sinon.stub(ganglion, '_bled112FindInformationFound');
+        funcStub.returns(fooBar);
+      });
+      after(() => {
+        funcStub.reset();
+      });
+      it('emit', function (done) {
+        ganglion.once('bleEvtAttclientFindInformationFound', (obj) => {
+          expect(obj).to.deep.equal(fooBar);
+          done();
+        });
+        ganglion._bled112ProcessBytes(rawBuf);
+      });
+      it('returns', function () {
+        const retVal = ganglion._bled112ProcessBytes(rawBuf);
+        expect(retVal).to.equal(fooBar);
+      });
+    });
+    describe('BLED112EvtAttclientGroupFound', function () {
+      const rawBuf = Buffer.from([0x80, 0x08, 0x04, 0x02, 0x00, 0x17, 0x00, 0x1E, 0x00, 0x02, 0x84, 0xFE]);
+      const fooBar = {'uuid': Buffer.from([0xFE, 0x84])};
+      let funcStub;
+      before(() => {
+        funcStub = sinon.stub(ganglion, '_bled112GroupFound');
+        funcStub.returns(fooBar);
+      });
+      after(() => {
+        funcStub.reset();
+      });
+      it('emit', function (done) {
+        ganglion.once('bleEvtAttclientGroupFound', (obj) => {
+          expect(obj).to.deep.equal(fooBar);
+          done();
+        });
+        ganglion._bled112ProcessBytes(rawBuf);
+      });
+      it('returns', function () {
+        const retVal = ganglion._bled112ProcessBytes(rawBuf);
+        expect(retVal).to.equal(fooBar);
+      });
+    });
+  });
+  describe('#_bled112RspGroupType', function () {
+    it('should be able to get the connection result connection handle', function () {
+      const rawBuf = Buffer.from([0x00, 0x03, 0x06, 0x03, 0x01, 0x00, 0x00]);
+
+      const expectedConnection = 1;
+      const expectedResult = Buffer.from([0x00, 0x00]);
+
+      const expectedOutput = {
+        connection: expectedConnection,
+        result: expectedResult
+      };
+
+      const actualOutput = ganglion._bled112RspGroupType(rawBuf);
 
       expect(actualOutput).to.deep.equal(expectedOutput);
     });
