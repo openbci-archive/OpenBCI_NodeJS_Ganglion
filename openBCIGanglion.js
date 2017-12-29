@@ -823,28 +823,36 @@ Ganglion.prototype._resetDroppedPacketSystem = function () {
   this._droppedPacketCounter = 0;
 };
 
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+// BLED112 //////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
 const kOBCIEmitterBLED112EvtAttclientFindInformationFound = 'bleEvtAttclientFindInformationFound';
 const kOBCIEmitterBLED112EvtAttclientGroupFound = 'bleEvtAttclientGroupFound';
 const kOBCIEmitterBLED112EvtAttclientProcedureCompleted = 'bleEvtAttclientProcedureCompleted';
 const kOBCIEmitterBLED112EvtConnectionDisconnected = 'bleEvtConnectionDisconnected';
 const kOBCIEmitterBLED112EvtConnectionStatus = 'bleEvtConnectionStatus';
 const kOBCIEmitterBLED112EvtGapScanResponse = 'bleEvtGapScanResponse';
-
+const kOBCIEmitterBLED112RspAttclientAttributeWrite = 'bleRspAttclientAttributeWrite';
+const kOBCIEmitterBLED112RspAttclientFindInformationFound = 'bleRspAttclientFindInfomationFound';
 const kOBCIEmitterBLED112RspAttclientReadByGroupType = 'bleRspAttclientReadByGroupType';
 const kOBCIEmitterBLED112RspGapDiscoverError = 'bleRspGapDiscoverError';
 const kOBCIEmitterBLED112RspGapDiscoverNoError = 'bleRspGapDiscoverNoError';
 const kOBCIEmitterBLED112RspGapConnectDirect = 'bleRspGapConnectDirect';
 
-const bleEvtConnectionStatus = Buffer.from([0x80, 0x10, 0x03, 0x00]);
-const bleEvtConnectionDisconnected = Buffer.from([0x80, 0x03, 0x03, 0x04]);
 const bleEvtAttclientFindInformationFound = Buffer.from([0x80, 0x06, 0x04, 0x04]);
 const bleEvtAttclientGroupFound = Buffer.from([0x80, 0x08, 0x04, 0x02]);
 const bleEvtAttclientProcedureCompleted = Buffer.from([0x80, 0x05, 0x04, 0x01]);
+const bleEvtConnectionStatus = Buffer.from([0x80, 0x10, 0x03, 0x00]);
+const bleEvtConnectionDisconnected = Buffer.from([0x80, 0x03, 0x03, 0x04]);
 const bleEvtGapScanResponse = Buffer.from([0x80, 0x1A, 0x06, 0x00]);
-
+const bleRspAttclientAttributeWrite = Buffer.from([0x00, 0x03, 0x04, 0x05]);
 const bleRspAttclientReadByGroupType = Buffer.from([0x00, 0x03, 0x04, 0x01]);
-const bleRspGapDiscover = Buffer.from([0x00, 0x02, 0x06, 0x02]);
+const bleRspAttclientFindInformationFound = Buffer.from([0x00, 0x03, 0x04, 0x03]);
 const bleRspGapConnectDirect = Buffer.from([0x00, 0x03, 0x06, 0x03]);
+const bleRspGapDiscover = Buffer.from([0x00, 0x02, 0x06, 0x02]);
 
 const ganglionServiceID = Buffer.from([0xFE, 0x84]);
 
@@ -911,6 +919,7 @@ Ganglion.prototype._bled112Init = function (portName) {
  * @property {Number} characteristicHandle
  * @property {Buffer} characteristicHandleRaw - The string of the advertisement data, not the full ad data
  * @property {Number} connection - The entire end of ad data
+ * @property {Number} type - The type, where 0x02 is short uuid and 0x10 is long, it's hex for length
  * @property {Buffer} uuid
  */
 
@@ -947,6 +956,10 @@ Ganglion.prototype._bled112Init = function (portName) {
  * @property {Number} connection
  * @property {Buffer} result
  */
+
+Ganglion.prototype._bled112AttributeWrite = function () {
+
+};
 
 /**
  * Connect to a BLE device
@@ -1097,11 +1110,17 @@ Ganglion.prototype._bled112DiscoverServices = function () {
  * @private
  */
 Ganglion.prototype._bled112FindInformationFound = function (data) {
+  const uuidLenPosition = 7;
+  const uuidArray = [];
+  for (let i = data[uuidLenPosition] - 1; i >= 0; i--) {
+    uuidArray.push(data[uuidLenPosition+1+i]);
+  }
   return {
     characteristicHandle: data[6] | data[5],
     characteristicHandleRaw: Buffer.from([data[6], data[5]]),
     connection: data[4],
-    uuid: Buffer.from([data[9], data[8]])
+    uuidLength: uuidArray.length,
+    uuid: Buffer.from(uuidArray)
   };
 };
 
@@ -1176,6 +1195,16 @@ Ganglion.prototype._bled112ProcessBytes = function (data) {
         if (this.options.verbose) console.log(`BLED112RspGapConnectDirect: ${JSON.stringify(newConnection)}`);
         this.emit(kOBCIEmitterBLED112RspGapConnectDirect, newConnection);
         return newConnection;
+      } else if (bufferEqual(data.slice(0, bleRspAttclientAttributeWrite.byteLength), bleRspAttclientAttributeWrite)) {
+        const newInformationRsp = this._bled112RspFindInformationFound(data);
+        if (this.options.verbose) console.log(`BLED112RspAttclientFindInformationFound: ${JSON.stringify(newInformationRsp)}`);
+        this.emit(kOBCIEmitterBLED112RspAttclientAttributeWrite, newInformationRsp);
+        return newInformationRsp;
+      } else if (bufferEqual(data.slice(0, bleRspAttclientFindInformationFound.byteLength), bleRspAttclientFindInformationFound)) {
+        const newInformationRsp = this._bled112RspFindInformationFound(data);
+        if (this.options.verbose) console.log(`BLED112RspAttclientFindInformationFound: ${JSON.stringify(newInformationRsp)}`);
+        this.emit(kOBCIEmitterBLED112RspAttclientFindInformationFound, newInformationRsp);
+        return newInformationRsp;
       }
     }
   } else if (data[0] === 0x80) {
@@ -1229,6 +1258,32 @@ Ganglion.prototype._bled112ProcessBytes = function (data) {
 
 Ganglion.prototype._bled112Ready = function () {
   return this._bled112Connected;
+};
+
+/**
+ * Parses a raw data response from ATT call to attribute write
+ * @param data
+ * @returns {BLED112GapConnectDirect}
+ * @private
+ */
+Ganglion.prototype._bled112RspAttributeWrite = function (data) {
+  return {
+    connection: data[4],
+    result: Buffer.from([data[6], data[5]])
+  };
+};
+
+/**
+ * Parses a raw data response from ATT call to find information about a service
+ * @param data
+ * @returns {BLED112GapConnectDirect}
+ * @private
+ */
+Ganglion.prototype._bled112RspFindInformationFound = function (data) {
+  return {
+    connection: data[4],
+    result: Buffer.from([data[6], data[5]])
+  };
 };
 
 /**
