@@ -83,6 +83,25 @@ describe('#ganglion', function () {
       expect(actualOutput).to.deep.equal(expectedOutput);
     });
   });
+  describe('#_bled112ConnectionDisconnected', function () {
+    it('should get connection number and result', function () {
+      const rawBuf = Buffer.from([0x80, 0x03, 0x03, 0x04, 0x00, 0x08, 0x02]);
+
+      const expectedConnection = 0;
+      const expectedReason = 'Link supervision timeout has expired.';
+      const expectedReasonRaw = Buffer.from([0x02, 0x08]);
+
+      const expectedOutput = {
+        connection: expectedConnection,
+        reason: expectedReason,
+        reasonRaw: expectedReasonRaw
+      };
+
+      const actualOutput = ganglion._bled112ConnectionDisconnected(rawBuf);
+
+      expect(actualOutput).to.deep.equal(expectedOutput);
+    });
+  });
   describe('#_bled112ConnectionMade', function () {
     it('should be able to parse for data', function () {
       const rawBuf = Buffer.from([0x80, 0x10, 0x03, 0x00, 0x01, 0x05, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0x3C, 0x00, 0x64, 0x00, 0x00, 0x00, 0xFF]);
@@ -281,6 +300,29 @@ describe('#ganglion', function () {
       });
       it('emit', function (done) {
         ganglion.once('bleEvtConnectionStatus', (obj) => {
+          expect(obj).to.deep.equal(fooBar);
+          done();
+        });
+        ganglion._bled112ProcessBytes(rawBuf);
+      });
+      it('returns', function () {
+        const retVal = ganglion._bled112ProcessBytes(rawBuf);
+        expect(retVal).to.equal(fooBar);
+      });
+    });
+    describe('BLED112EvtConnectionDisconnected', function () {
+      const rawBuf = Buffer.from([0x80, 0x03, 0x03, 0x04, 0x00, 0x08, 0x02]);
+      const fooBar = {'foo': 'bar'};
+      let funcStub;
+      before(() => {
+        funcStub = sinon.stub(ganglion, '_bled112ConnectionDisconnected');
+        funcStub.returns(fooBar);
+      });
+      after(() => {
+        funcStub.reset();
+      });
+      it('emit', function (done) {
+        ganglion.once('bleEvtConnectionDisconnected', (obj) => {
           expect(obj).to.deep.equal(fooBar);
           done();
         });

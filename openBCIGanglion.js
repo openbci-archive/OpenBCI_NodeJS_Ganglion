@@ -823,10 +823,11 @@ Ganglion.prototype._resetDroppedPacketSystem = function () {
   this._droppedPacketCounter = 0;
 };
 
-const kOBCIEmitterBLED112EvtConnectionStatus = 'bleEvtConnectionStatus';
 const kOBCIEmitterBLED112EvtAttclientFindInformationFound = 'bleEvtAttclientFindInformationFound';
 const kOBCIEmitterBLED112EvtAttclientGroupFound = 'bleEvtAttclientGroupFound';
 const kOBCIEmitterBLED112EvtAttclientProcedureCompleted = 'bleEvtAttclientProcedureCompleted';
+const kOBCIEmitterBLED112EvtConnectionDisconnected = 'bleEvtConnectionDisconnected';
+const kOBCIEmitterBLED112EvtConnectionStatus = 'bleEvtConnectionStatus';
 const kOBCIEmitterBLED112EvtGapScanResponse = 'bleEvtGapScanResponse';
 
 const kOBCIEmitterBLED112RspAttclientReadByGroupType = 'bleRspAttclientReadByGroupType';
@@ -835,6 +836,7 @@ const kOBCIEmitterBLED112RspGapDiscoverNoError = 'bleRspGapDiscoverNoError';
 const kOBCIEmitterBLED112RspGapConnectDirect = 'bleRspGapConnectDirect';
 
 const bleEvtConnectionStatus = Buffer.from([0x80, 0x10, 0x03, 0x00]);
+const bleEvtConnectionDisconnected = Buffer.from([0x80, 0x03, 0x03, 0x04]);
 const bleEvtAttclientFindInformationFound = Buffer.from([0x80, 0x06, 0x04, 0x04]);
 const bleEvtAttclientGroupFound = Buffer.from([0x80, 0x08, 0x04, 0x02]);
 const bleEvtAttclientProcedureCompleted = Buffer.from([0x80, 0x05, 0x04, 0x01]);
@@ -990,6 +992,25 @@ Ganglion.prototype._bled112ConnectionMade = function (data) {
     latency: data[18] | data[17],
     sender: Buffer.from([data[11], data[10], data[9], data[8], data[7], data[6]]),
     timeout: data[16] | data[15]
+  };
+};
+
+/**
+ *
+ * @param data
+ * @returns {{connection: number, reasonRaw: Buffer2, reasonString: string}}
+ * @private
+ */
+Ganglion.prototype._bled112ConnectionDisconnected = function (data) {
+  const raw = Buffer.from([data[6], data[5]]);
+  let reason = '';
+  if (bufferEqual(Buffer.from([data[6], data[5]]), Buffer.from([0x02, 0x08]))) {
+    reason = 'Link supervision timeout has expired.';
+  }
+  return {
+    connection: data[4],
+    reasonRaw: raw,
+    reason: reason
   };
 };
 
@@ -1171,6 +1192,11 @@ Ganglion.prototype._bled112ProcessBytes = function (data) {
       if (this.options.verbose) console.log(`BLED112EvtGapScanResponse: ${JSON.stringify(newPeripheral)}`);
       this.emit(kOBCIEmitterBLED112EvtGapScanResponse, newPeripheral);
       return newPeripheral;
+    } else if (bufferEqual(data.slice(0, bleEvtConnectionDisconnected.byteLength), bleEvtConnectionDisconnected)) {
+      const newConnectionDisconnect = this._bled112ConnectionDisconnected(data);
+      if (this.options.verbose) console.log(`BLED112EvtConnectionDisconnect: ${JSON.stringify(newConnectionDisconnect)}`);
+      this.emit(kOBCIEmitterBLED112EvtConnectionDisconnected, newConnectionDisconnect);
+      return newConnectionDisconnect;
     } else if (bufferEqual(data.slice(0, bleEvtConnectionStatus.byteLength), bleEvtConnectionStatus)) {
       const newConnection = this._bled112ConnectionMade(data);
       if (this.options.verbose) console.log(`BLED112EvtConnectionStatus: ${JSON.stringify(newConnection)}`);
