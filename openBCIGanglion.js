@@ -965,15 +965,18 @@ Ganglion.prototype._bled112Init = function (portName) {
  */
 
 /**
- * @param p {BLED112AttributeWrite}
- * @private
- */
-Ganglion.prototype._bled112AttributeWrite = function (p) {
-
-};
-
-/**
  * Connect to a BLE device
+ * Steps:
+ *  1. Connect to peripheral with mac address
+ *  2. Discover Services (read by group type)
+ *  3. Parse group found for uuid 0xFE84
+ *  4. Discover descriptors using start and end from group found response (find information)
+ *  5. Parse find information found responses for uuid 2902, store as Client Characteristic Configuration
+ *  6. Parse find information found responses for uuid 2d30...0596, there should be three, save the middle as the write characteristic, first one is read
+ *  7. Wait for attclient procedure complete, timeout after 1 second with reject
+ *  8. If CCC and write were found, continue, else reject,
+ *  9. Write the 0x01 to 0x2902 characteristic handle
+ *  10. Wait for procedure completed, resolve, timeout after 1 second with reject
  * @param p {BLED112Peripheral}
  * @returns {Promise}
  * @private
@@ -981,11 +984,15 @@ Ganglion.prototype._bled112AttributeWrite = function (p) {
 Ganglion.prototype._bled112Connect = function (p) {
   return new Promise((resolve, reject) => {
     if (this.isConnected()) return reject(Error('already connected!'));
-    // this.once(kOBCIEmitterBLED112EvtConnectionStatus, (connection) => {
-    //   this.serial.write(this._bled112)
-    // });
+    this.once(kOBCIEmitterBLED112EvtConnectionStatus, (newConnection) => {
+      //
+      this.serial.write(this._bled112GetAttributeWrite({
+        characteristicHandleRaw: newConnection.characteristicHandleRaw,
+        connection: newConnection.connection,
+
+      }))
+    });
     this.serial.write(this._bled112GetConnectDirect(p))
-      .then(resolve)
       .catch(reject);
   });
 };
