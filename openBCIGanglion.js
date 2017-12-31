@@ -903,6 +903,13 @@ Ganglion.prototype._bled112Init = function (portName) {
 };
 
 /**
+ * @typedef {Object} BLED112AttributeWrite
+ * @property {Buffer} characteristicHandleRaw - Buffer of length 2 for the service number in the att database
+ * @property {Number} connection - Which connection is being used
+ * @property {String | Buffer} value - The value to send to the device
+ */
+
+/**
  * @typedef {Object} BLEDConnection
  * @property {Number} addressType
  * @property {Number} bonding
@@ -957,7 +964,11 @@ Ganglion.prototype._bled112Init = function (portName) {
  * @property {Buffer} result
  */
 
-Ganglion.prototype._bled112AttributeWrite = function () {
+/**
+ * @param p {BLED112AttributeWrite}
+ * @private
+ */
+Ganglion.prototype._bled112AttributeWrite = function (p) {
 
 };
 
@@ -970,6 +981,9 @@ Ganglion.prototype._bled112AttributeWrite = function () {
 Ganglion.prototype._bled112Connect = function (p) {
   return new Promise((resolve, reject) => {
     if (this.isConnected()) return reject(Error('already connected!'));
+    // this.once(kOBCIEmitterBLED112EvtConnectionStatus, (connection) => {
+    //   this.serial.write(this._bled112)
+    // });
     this.serial.write(this._bled112GetConnectDirect(p))
       .then(resolve)
       .catch(reject);
@@ -1124,8 +1138,25 @@ Ganglion.prototype._bled112FindInformationFound = function (data) {
   };
 };
 
-Ganglion.prototype._bled112GetAttributeWrite = function () {
-  return Buffer.from([0x00, 0x05, 0x04, 0x05, 0x01, 0x1a, 0x00, 0x01, 0x01]);
+/**
+ * Used to get the buffer of the attribute to write
+ * @param p {BLED112AttributeWrite}
+ * @returns {Buffer | Buffer2}
+ * @private
+ */
+Ganglion.prototype._bled112GetAttributeWrite = function (p) {
+  let outputArray = [0x00, 0x05, 0x04, 0x05, p.connection, p.characteristicHandleRaw[1], p.characteristicHandleRaw[0], p.value.length];
+  if (typeof p.value === 'string') {
+    for (let i = 0; i < p.value.length; i++) {
+      outputArray.push(p.value.charCodeAt(i));
+    }
+  } else {
+    for (let i = 0; i < p.value.length; i++) {
+      outputArray.push(p.value[i]);
+    }
+
+  }
+  return Buffer.from(outputArray);
 };
 
 /**

@@ -56,6 +56,12 @@ describe('#ganglion', function () {
   it('should return 4 channels', function () {
     expect(ganglion.numberOfChannels()).to.equal(4);
   });
+  describe('#_bled112Connect', function () {
+    // Connect to device
+
+    // Make writeable
+
+  });
   describe('#_bled112ConnectDirect', function () {
     it('should be able to get the connection result connection handle', function () {
       const rawBuf = Buffer.from([0x00, 0x03, 0x06, 0x03, 0x00, 0x00, 0x01]);
@@ -192,42 +198,61 @@ describe('#ganglion', function () {
       expect(actualOutput).to.deep.equal(expectedOutput);
     });
   });
-  describe('#_bled112RspAttributeWrite', function () {
-    it('should be able to get the connection and result', function () {
-      const rawBuf = Buffer.from([0x00, 0x03, 0x04, 0x05, 0x02, 0x01, 0x00]);
+  describe('#_bled112GetAttributeWrite', function () {
+    it('should get the attribute write packet with buffer', function () {
+      const expectedOutput = Buffer.from([0x00, 0x05, 0x04, 0x05, 0x00, 0x1A, 0x00, 0x02, 0x01, 0x00]);
 
-      const expectedConnection = 2;
-      const expectedResult = Buffer.from([0x00, 0x01]);
+      const expectedConnection = 0;
+      const expectedCharacteristicHandleRaw = Buffer.from([0x00, 0x1A]);
+      const expectedValue = Buffer.from([0x01, 0x00]);
 
-      const expectedOutput = {
+      const bledAttributeWrite = {
         connection: expectedConnection,
-        result: expectedResult
+        characteristicHandleRaw: expectedCharacteristicHandleRaw,
+        value: expectedValue
       };
 
-      const actualOutput = ganglion._bled112RspAttributeWrite(rawBuf);
+      const actualOutput = ganglion._bled112GetAttributeWrite(bledAttributeWrite);
 
       expect(actualOutput).to.deep.equal(expectedOutput);
     });
-  });
-  describe('#_bled112RspFindInformationFound', function () {
-    it('should be able to get the connection and result', function () {
-      const rawBuf = Buffer.from([0x00, 0x03, 0x04, 0x03, 0x02, 0x01, 0x00]);
+    it('should get the attribute write packet with a char', function () {
+      const expectedOutput = Buffer.from([0x00, 0x05, 0x04, 0x05, 0x00, 0x1A, 0x00, 0x01, 0x62]);
 
-      const expectedConnection = 2;
-      const expectedResult = Buffer.from([0x00, 0x01]);
+      const expectedConnection = 0;
+      const expectedCharacteristicHandleRaw = Buffer.from([0x00, 0x1A]);
+      const expectedValue = 'b';
 
-      const expectedOutput = {
+      const bledAttributeWrite = {
         connection: expectedConnection,
-        result: expectedResult
+        characteristicHandleRaw: expectedCharacteristicHandleRaw,
+        value: expectedValue
       };
 
-      const actualOutput = ganglion._bled112RspFindInformationFound(rawBuf);
+      const actualOutput = ganglion._bled112GetAttributeWrite(bledAttributeWrite);
+
+      expect(actualOutput).to.deep.equal(expectedOutput);
+    });
+    it('should get the attribute write packet with string', function () {
+      const expectedOutput = Buffer.from([0x00, 0x05, 0x04, 0x05, 0x00, 0x1A, 0x00, 0x02, 0x61, 0x6A]);
+
+      const expectedConnection = 0;
+      const expectedCharacteristicHandleRaw = Buffer.from([0x00, 0x1A]);
+      const expectedValue = 'aj';
+
+      const bledAttributeWrite = {
+        connection: expectedConnection,
+        characteristicHandleRaw: expectedCharacteristicHandleRaw,
+        value: expectedValue
+      };
+
+      const actualOutput = ganglion._bled112GetAttributeWrite(bledAttributeWrite);
 
       expect(actualOutput).to.deep.equal(expectedOutput);
     });
   });
   describe('#_bled112GetConnectDirect', function () {
-    it('should get the connect direct response', function () {
+    it('should get the connect direct packet', function () {
       const expectedOutput = Buffer.from([0x00, 0x0F, 0x06, 0x03, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0x3C, 0x00, 0x4C, 0x00, 0x64, 0x00, 0x00, 0x00]);
 
       const expectedConnection = 1;
@@ -519,6 +544,40 @@ describe('#ganglion', function () {
         const retVal = ganglion._bled112ProcessBytes(rawBuf);
         expect(retVal).to.equal(fooBar);
       });
+    });
+  });
+  describe('#_bled112RspAttributeWrite', function () {
+    it('should be able to get the connection and result', function () {
+      const rawBuf = Buffer.from([0x00, 0x03, 0x04, 0x05, 0x02, 0x01, 0x00]);
+
+      const expectedConnection = 2;
+      const expectedResult = Buffer.from([0x00, 0x01]);
+
+      const expectedOutput = {
+        connection: expectedConnection,
+        result: expectedResult
+      };
+
+      const actualOutput = ganglion._bled112RspAttributeWrite(rawBuf);
+
+      expect(actualOutput).to.deep.equal(expectedOutput);
+    });
+  });
+  describe('#_bled112RspFindInformationFound', function () {
+    it('should be able to get the connection and result', function () {
+      const rawBuf = Buffer.from([0x00, 0x03, 0x04, 0x03, 0x02, 0x01, 0x00]);
+
+      const expectedConnection = 2;
+      const expectedResult = Buffer.from([0x00, 0x01]);
+
+      const expectedOutput = {
+        connection: expectedConnection,
+        result: expectedResult
+      };
+
+      const actualOutput = ganglion._bled112RspFindInformationFound(rawBuf);
+
+      expect(actualOutput).to.deep.equal(expectedOutput);
     });
   });
   describe('#_bled112RspGroupType', function () {
