@@ -1182,13 +1182,24 @@ Ganglion.prototype._bled112GetDiscover = function () {
 };
 
 /**
- * Creates a packet for finding information about a service group. It's like hitting the `Services Discover`
+ * Creates a packet for finding information about a service group. It's like hitting the `Discover Descriptors`
  * @param groupService {BLED112GroupService}
  * @returns {Buffer | Buffer2}
  * @private
  */
 Ganglion.prototype._bled112GetFindInformation = function (groupService) {
   return Buffer.from([0x00, 0x05, 0x04, 0x03, groupService.connection, groupService.startRaw[1], groupService.startRaw[0], groupService.endRaw[1], groupService.endRaw[0]]);
+};
+
+/**
+ * Creates a packet for getting services about a ble connection. It's like hitting the `Services Discover`
+ * @param p {Object}
+ * @param p.connection {Number} - The connection number
+ * @returns {Buffer | Buffer2}
+ * @private
+ */
+Ganglion.prototype._bled112GetReadByGroupType = function (p) {
+  return Buffer.from([0x00, 0x08, 0x04, 0x01, p.connection, 0x01, 0x00, 0xFF, 0xFF, 0x02, 0x00, 0x28]);
 };
 
 /**

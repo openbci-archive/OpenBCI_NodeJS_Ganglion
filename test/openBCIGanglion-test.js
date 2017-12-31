@@ -305,6 +305,21 @@ describe('#ganglion', function () {
       expect(actualOutput).to.deep.equal(expectedOutput);
     });
   });
+  describe('#_bled112GetReadByGroupType', function () {
+    it('should be able to set connection and uuid', function () {
+      const expectedOutput = Buffer.from([0x00, 0x08, 0x04, 0x01, 0x00, 0x01, 0x00, 0xFF, 0xFF, 0x02, 0x00, 0x28]);
+
+      const expectedConnection = 0;
+
+      const p = {
+        connection: expectedConnection
+      };
+
+      const actualOutput = ganglion._bled112GetReadByGroupType(p);
+
+      expect(actualOutput).to.deep.equal(expectedOutput);
+    });
+  });
   describe('#_bled112GroupFound', function () {
     it('should be able to get the connection result connection handle', function () {
       const rawBuf = Buffer.from([0x80, 0x08, 0x04, 0x02, 0x00, 0x17, 0x00, 0x1E, 0x00, 0x02, 0x84, 0xFE]);
