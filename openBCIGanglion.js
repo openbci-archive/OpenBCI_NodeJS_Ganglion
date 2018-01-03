@@ -128,8 +128,10 @@ function Ganglion (options, callback) {
 
   /** Private Properties (keep alphabetical) */
   this._accelArray = [0, 0, 0];
+  this._bled112Characteristics = [];
   this._bled112Connected = false;
   this._bled112Connection = 0;
+  this._bled112WriteCharacteristic = null;
   this._connected = false;
   this._decompressedSamples = new Array(3);
   this._droppedPacketCounter = 0;
@@ -854,7 +856,9 @@ const bleRspAttclientFindInformationFound = Buffer.from([0x00, 0x03, 0x04, 0x03]
 const bleRspGapConnectDirect = Buffer.from([0x00, 0x03, 0x06, 0x03]);
 const bleRspGapDiscover = Buffer.from([0x00, 0x02, 0x06, 0x02]);
 
-const ganglionServiceID = Buffer.from([0xFE, 0x84]);
+const ganglionUUIDCCC = Buffer.from([0x29, 0x02]);
+const ganglionUUIDCharacteristic = Buffer.from([0x2D, 0x30, 0xC0, 0x82, 0xF3, 0x9F, 0x4C, 0xE6, 0x92, 0x3F, 0x34, 0x84, 0xEA, 0x48, 0x05, 0x96]);
+const ganglionUUIDService = Buffer.from([0xFE, 0x84]);
 
 /**
  * Call to init with a port name
@@ -984,14 +988,41 @@ Ganglion.prototype._bled112Init = function (portName) {
 Ganglion.prototype._bled112Connect = function (p) {
   return new Promise((resolve, reject) => {
     if (this.isConnected()) return reject(Error('already connected!'));
+    const writeNotifyAttribute = () => {
+      resolve();
+    };
+    /**
+     * Called when information if found
+     * @param information {BLED112FindInformationFound}
+     */
+    const findInformationFound = (information) => {
+      if (bufferEqual(ganglionUUIDCCC, information.uuid)) {
+        this.once(kOBCIEmitterBLED112EvtAttclientProcedureCompleted, writeNotifyAttribute);
+        this.serial.write(this._bled112GetAttributeWrite({
+          characteristicHandleRaw: information.characteristicHandleRaw,
+          connection: information.connection,
+          value: Buffer.from([0x01])
+        }));
+      } else if (bufferEqual(ganglionUUIDCharacteristic, information.uuid)) {
+        console.log(`possible write characteristic found: ${JSON.stringify(information)}`)
+        this._bled112WriteNotification = information;
+      }
+      this._bled112Characteristics.push(information);
+    };
+    const groupFound = (group) => {
+      if (bufferEqual(ganglionUUIDService, group.uuid)) {
+        this.removeListener(kOBCIEmitterBLED112EvtAttclientGroupFound, groupFound);
+        this._bled112Characteristics = [];
+        this.on(kOBCIEmitterBLED112EvtAttclientFindInformationFound, findInformationFound);
+        this.serial.write(this._bled112GetFindInformation(group)).catch(reject);
+      }
+    };
+    this.on(kOBCIEmitterBLED112EvtAttclientGroupFound, groupFound);
     this.once(kOBCIEmitterBLED112EvtConnectionStatus, (newConnection) => {
-      //
-      this.serial.write(this._bled112GetAttributeWrite({
-        characteristicHandleRaw: newConnection.characteristicHandleRaw,
-        connection: newConnection.connection,
+      this.serial.write(this._bled112GetReadByGroupType(newConnection)).catch(reject);
 
-      }))
     });
+    // Connect to peripheral with mac address
     this.serial.write(this._bled112GetConnectDirect(p))
       .catch(reject);
   });
@@ -1287,7 +1318,7 @@ Ganglion.prototype._bled112ProcessBytes = function (data) {
       return newInformation;
     } else if (bufferEqual(data.slice(0, bleEvtAttclientGroupFound.byteLength), bleEvtAttclientGroupFound)) {
       const newGroup = this._bled112GroupFound(data);
-      if (bufferEqual(newGroup.uuid, ganglionServiceID)) {
+      if (bufferEqual(newGroup.uuid, ganglionUUIDService)) {
         this._bled112Service = newGroup;
         if (this.options.verbose) console.log(`BLED112EvtAttclientGroupFound: ${JSON.stringify(newGroup)}`);
         this.emit(kOBCIEmitterBLED112EvtAttclientGroupFound, newGroup);
