@@ -349,15 +349,6 @@ describe('#ganglion', function () {
     afterEach(function () {
       ganglion.bled112CleanupEmitters();
     });
-    // 'bleEvtConnectionStatus'
-    // 'bleEvtAttclientFindInformationFound'
-    // 'bleEvtAttclientGroupFound'
-    // 'bleEvtAttclientProcedureCompleted'
-    // 'bleEvtGapScanResponse'
-    // 'bleRspAttclientReadByGroupType'
-    // 'bleRspGapDiscoverError'
-    // 'bleRspGapDiscoverNoError'
-    // 'bleRspGapConnectDirect'
     describe('BLED112EvtAttclientProcedureCompleted', function () {
       const rawBuf = Buffer.from([0x80, 0x05, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00]);
       it('emit', function (done) {
@@ -559,6 +550,25 @@ describe('#ganglion', function () {
         const retVal = ganglion._bled112ProcessBytes(rawBuf);
         expect(retVal).to.equal(fooBar);
       });
+    });
+  });
+  describe('#_bled112ProcessBytesDiscover', function () {
+    it('should be able to extract scan response when only thing in input data', function () {
+      const expectedScanResponse = Buffer.from([0x80, 0x1A, 0x06, 0x00, 0xCD, 0x00, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0xFF, 0x0F, 0x0E, 0x09, 0x47, 0x61, 0x6E, 0x67, 0x6C, 0x69, 0x6F, 0x6E, 0x2D, 0x35, 0x34, 0x63, 0x61]);
+
+      const actualOutput = ganglion._bled112ProcessBytesDiscover(expectedScanResponse);
+
+      expect(actualOutput.scanResponses[0]).to.deep.equal(expectedScanResponse);
+    });
+    it('should be able to extract one scan responses and discard junk in front', function () {
+      const junk = Buffer.from([0x06, 0x00, 0xbd, 0x00, 0xd9, 0x66, 0xce, 0x00, 0x53, 0xe9, 0x01, 0xff, 0x0f, 0x0e, 0x09, 0x47]);
+      const scanResponse1 = Buffer.from([0x80, 0x1A, 0x06, 0x00, 0xCD, 0x00, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0xFF, 0x0F, 0x0E, 0x09, 0x47, 0x61, 0x6E, 0x67, 0x6C, 0x69, 0x6F, 0x6E, 0x2D, 0x35, 0x34, 0x63, 0x61]);
+      const inputData = Buffer.from([junk, scanResponse1]);
+
+      const actualOutput = ganglion._bled112ProcessBytesDiscover(inputData);
+
+      expect(actualOutput.scanResponses[0]).to.deep.equal(scanResponse1);
+      expect(actualOutput.buffer).to.equal(null);
     });
   });
   describe('#_bled112RspAttributeWrite', function () {

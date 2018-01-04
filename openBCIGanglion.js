@@ -131,6 +131,8 @@ function Ganglion (options, callback) {
   this._bled112Characteristics = [];
   this._bled112Connected = false;
   this._bled112Connection = 0;
+  this._bled112ParseingMode = kOBCIBLED112ParsingNormal;
+  /** @type {BLED112FindInformationFound} */
   this._bled112WriteCharacteristic = null;
   this._connected = false;
   this._decompressedSamples = new Array(3);
@@ -250,7 +252,10 @@ Ganglion.prototype.connect = function (id) {
         .then(resolve)
         .catch(reject);
     } else if (_.isObject(id)) {
-      this._nobleConnect(id)
+      let func;
+      if (this.options.bled112) func = this._bled112Connect;
+      else func = this._nobleConnect;
+      func(id)
         .then(resolve)
         .catch(reject);
     } else {
@@ -543,10 +548,23 @@ Ganglion.prototype.write = function (data) {
         if (err) {
           reject(err);
         } else {
-          if (this.options.debug) obciDebug.debugBytes('>>>', data);
+          if (this.options.debug) debug.default('>>>', data);
           resolve();
         }
       });
+    } else if (this._bled112WriteCharacteristic) {
+      this.once(kOBCIEmitterBLED112RspAttclientAttributeWrite, (res) => {
+        if (bufferEqual(res.result, bleResultNoError)) {
+          resolve();
+        } else {
+          reject(Error('Unable to write to BLED112 attribute', res.result[0] | res.result[1]));
+        }
+      });
+      this._bled112WriteAndDrain(this._bled112GetAttributeWrite({
+        characteristicHandleRaw: this._bled112WriteCharacteristic.characteristicHandleRaw,
+        connection: this._bled112WriteCharacteristic.connection,
+        value: data
+      })).catch(reject);
     } else {
       reject('Send characteristic not set, please call connect method');
     }
@@ -796,7 +814,7 @@ Ganglion.prototype._nobleScanStop = function () {
  * @private
  */
 Ganglion.prototype._processBytes = function (data) {
-  if (this.options.debug) obciDebug.debugBytes('<<', data);
+  if (this.options.debug) debug.default('<<', data);
   this._rawDataPacketToSample.rawDataPacket = data;
   const obj = utilities.parseGanglion(this._rawDataPacketToSample);
   if (obj) {
@@ -825,11 +843,11 @@ Ganglion.prototype._resetDroppedPacketSystem = function () {
   this._droppedPacketCounter = 0;
 };
 
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
+// ///////////////////////////////////////////////////////////////////////////////////////////
+// ///////////////////////////////////////////////////////////////////////////////////////////
 // BLED112 //////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
+// ///////////////////////////////////////////////////////////////////////////////////////////
+// ///////////////////////////////////////////////////////////////////////////////////////////
 
 const kOBCIEmitterBLED112EvtAttclientFindInformationFound = 'bleEvtAttclientFindInformationFound';
 const kOBCIEmitterBLED112EvtAttclientGroupFound = 'bleEvtAttclientGroupFound';
@@ -850,6 +868,7 @@ const bleEvtAttclientProcedureCompleted = Buffer.from([0x80, 0x05, 0x04, 0x01]);
 const bleEvtConnectionStatus = Buffer.from([0x80, 0x10, 0x03, 0x00]);
 const bleEvtConnectionDisconnected = Buffer.from([0x80, 0x03, 0x03, 0x04]);
 const bleEvtGapScanResponse = Buffer.from([0x80, 0x1A, 0x06, 0x00]);
+const bleResultNoError = Buffer.from([0, 0]);
 const bleRspAttclientAttributeWrite = Buffer.from([0x00, 0x03, 0x04, 0x05]);
 const bleRspAttclientReadByGroupType = Buffer.from([0x00, 0x03, 0x04, 0x01]);
 const bleRspAttclientFindInformationFound = Buffer.from([0x00, 0x03, 0x04, 0x03]);
@@ -859,6 +878,12 @@ const bleRspGapDiscover = Buffer.from([0x00, 0x02, 0x06, 0x02]);
 const ganglionUUIDCCC = Buffer.from([0x29, 0x02]);
 const ganglionUUIDCharacteristic = Buffer.from([0x2D, 0x30, 0xC0, 0x82, 0xF3, 0x9F, 0x4C, 0xE6, 0x92, 0x3F, 0x34, 0x84, 0xEA, 0x48, 0x05, 0x96]);
 const ganglionUUIDService = Buffer.from([0xFE, 0x84]);
+
+/** Used in parsing incoming serial data */
+const kOBCIBLED112ParsingDiscover = 0;
+const kOBCIBLED112ParsingFindInfo = 1;
+const kOBCIBLED112ParsingFindGroups = 2;
+const kOBCIBLED112ParsingNormal = 0;
 
 /**
  * Call to init with a port name
@@ -988,8 +1013,18 @@ Ganglion.prototype._bled112Init = function (portName) {
 Ganglion.prototype._bled112Connect = function (p) {
   return new Promise((resolve, reject) => {
     if (this.isConnected()) return reject(Error('already connected!'));
-    const writeNotifyAttribute = () => {
-      resolve();
+    const writeNotifyAttribute = (res) => {
+      if (bufferEqual(res.result, bleResultNoError)) {
+        if (this.options.verbose) console.log(`_bled112Connect: Success wrote attribute to CCC`);
+      } else {
+        if (this.options.verbose) console.log(`_bled112Connect: Failed to write attribute to CCC`);
+      }
+    };
+    const handles = [];
+    let endFindInformationFoundTimeout = null;
+    const endFindInformationFound = () => {
+      this.removeListener(kOBCIEmitterBLED112EvtAttclientFindInformationFound, findInformationFound);
+      if (this.options.verbose) console.log('_bled112Connect: Find information found complete.');
     };
     /**
      * Called when information if found
@@ -997,16 +1032,27 @@ Ganglion.prototype._bled112Connect = function (p) {
      */
     const findInformationFound = (information) => {
       if (bufferEqual(ganglionUUIDCCC, information.uuid)) {
+        if (this.options.verbose) console.log(`_bled112Connect: write characteristic found: ${JSON.stringify(information)}`);
         this.once(kOBCIEmitterBLED112EvtAttclientProcedureCompleted, writeNotifyAttribute);
         this.serial.write(this._bled112GetAttributeWrite({
           characteristicHandleRaw: information.characteristicHandleRaw,
           connection: information.connection,
-          value: Buffer.from([0x01])
+          value: Buffer.from([0x01, 0x00])
         }));
       } else if (bufferEqual(ganglionUUIDCharacteristic, information.uuid)) {
-        console.log(`possible write characteristic found: ${JSON.stringify(information)}`)
-        this._bled112WriteNotification = information;
+        handles.push(information);
+        if (handles.length === 2) {
+          if (this.options.verbose) console.log(`_bled112Connect: write characteristic found: ${JSON.stringify(information)}`);
+          this._bled112WriteCharacteristic = information;
+          resolve();
+        } else {
+          if (this.options.verbose) console.log(`_bled112Connect: not write characteristic`);
+        }
       }
+      if (endFindInformationFoundTimeout) {
+        clearTimeout(endFindInformationFoundTimeout);
+      }
+      endFindInformationFoundTimeout = setTimeout(endFindInformationFound, 250); // End find information found  after no new characteristics
       this._bled112Characteristics.push(information);
     };
     const groupFound = (group) => {
@@ -1020,7 +1066,6 @@ Ganglion.prototype._bled112Connect = function (p) {
     this.on(kOBCIEmitterBLED112EvtAttclientGroupFound, groupFound);
     this.once(kOBCIEmitterBLED112EvtConnectionStatus, (newConnection) => {
       this.serial.write(this._bled112GetReadByGroupType(newConnection)).catch(reject);
-
     });
     // Connect to peripheral with mac address
     this.serial.write(this._bled112GetConnectDirect(p))
@@ -1088,8 +1133,8 @@ Ganglion.prototype._bled112ConnectionDisconnected = function (data) {
 Ganglion.prototype._bled112DeviceFound = function (data) {
   return {
     addressType: data[12],
-    advertisementDataString: data.slice(17).toString(),
-    advertisementDataRaw: data.slice(15),
+    advertisementDataString: data.slice(17, 30).toString(),
+    advertisementDataRaw: data.slice(15, 30),
     bond: data[13],
     packetType: data[5],
     rssi: -(~(0xffffff00 | data[4]) + 1),
@@ -1165,7 +1210,7 @@ Ganglion.prototype._bled112FindInformationFound = function (data) {
   const uuidLenPosition = 7;
   const uuidArray = [];
   for (let i = data[uuidLenPosition] - 1; i >= 0; i--) {
-    uuidArray.push(data[uuidLenPosition+1+i]);
+    uuidArray.push(data[uuidLenPosition + 1 + i]);
   }
   return {
     characteristicHandle: data[6] | data[5],
@@ -1192,7 +1237,6 @@ Ganglion.prototype._bled112GetAttributeWrite = function (p) {
     for (let i = 0; i < p.value.length; i++) {
       outputArray.push(p.value[i]);
     }
-
   }
   return Buffer.from(outputArray);
 };
@@ -1250,8 +1294,8 @@ Ganglion.prototype._bled112GroupFound = function (data) {
   };
 };
 
-Ganglion.prototype._bled112ProcessBytes = function (data) {
-  if (this.options.debug) obciDebug.debug('<<', data);
+Ganglion.prototype._bled112ProcessBytes_vak = function (data) {
+  if (this.options.debug) debug.default('<<', data);
   if (data[0] === 0x00) {
     if (data[1] === 0x02) {
       if (bufferEqual(data.slice(0, bleRspGapDiscover.byteLength), bleRspGapDiscover)) {
@@ -1276,10 +1320,10 @@ Ganglion.prototype._bled112ProcessBytes = function (data) {
         this.emit(kOBCIEmitterBLED112RspGapConnectDirect, newConnection);
         return newConnection;
       } else if (bufferEqual(data.slice(0, bleRspAttclientAttributeWrite.byteLength), bleRspAttclientAttributeWrite)) {
-        const newInformationRsp = this._bled112RspFindInformationFound(data);
-        if (this.options.verbose) console.log(`BLED112RspAttclientFindInformationFound: ${JSON.stringify(newInformationRsp)}`);
-        this.emit(kOBCIEmitterBLED112RspAttclientAttributeWrite, newInformationRsp);
-        return newInformationRsp;
+        const newAttributeWriteRsp = this._bled112RspFindInformationFound(data);
+        if (this.options.verbose) console.log(`BLED112RspAttclientAttributeWrite: ${JSON.stringify(newAttributeWriteRsp)}`);
+        this.emit(kOBCIEmitterBLED112RspAttclientAttributeWrite, newAttributeWriteRsp);
+        return newAttributeWriteRsp;
       } else if (bufferEqual(data.slice(0, bleRspAttclientFindInformationFound.byteLength), bleRspAttclientFindInformationFound)) {
         const newInformationRsp = this._bled112RspFindInformationFound(data);
         if (this.options.verbose) console.log(`BLED112RspAttclientFindInformationFound: ${JSON.stringify(newInformationRsp)}`);
@@ -1300,6 +1344,9 @@ Ganglion.prototype._bled112ProcessBytes = function (data) {
       if (!peripheralFound) this.peripheralArray.push(newPeripheral);
       if (this.options.verbose) console.log(`BLED112EvtGapScanResponse: ${JSON.stringify(newPeripheral)}`);
       this.emit(kOBCIEmitterBLED112EvtGapScanResponse, newPeripheral);
+      if (newPeripheral.match(/Ganglion/)) {
+        this.emit(k.OBCIEmitterGanglionFound, newPeripheral);
+      }
       return newPeripheral;
     } else if (bufferEqual(data.slice(0, bleEvtConnectionDisconnected.byteLength), bleEvtConnectionDisconnected)) {
       const newConnectionDisconnect = this._bled112ConnectionDisconnected(data);
@@ -1335,6 +1382,239 @@ Ganglion.prototype._bled112ProcessBytes = function (data) {
   if (this.options.verbose) console.log('Not able to identify the data');
   return data;
 };
+
+/**
+ * @description Consider the '_processBytes' method to be the work horse of this
+ *              entire framework. This method gets called any time there is new
+ *              data coming in on the serial port. If you are familiar with the
+ *              'serialport' package, then every time data is emitted, this function
+ *              gets sent the input data. The data comes in very fragmented, sometimes
+ *              we get half of a packet, and sometimes we get 3 and 3/4 packets, so
+ *              we will need to store what we don't read for next time.
+ * @param data - a buffer of unknown size
+ * @private
+ * @author AJ Keller (@pushtheworldllc)
+ */
+Ganglion.prototype._processBytes = function (data) {
+  if (this.options.debug) debug.default(this._bled112ParseingMode + '<<', data);
+
+  // Concat old buffer
+  let oldDataBuffer = null;
+  if (this.buffer) {
+    oldDataBuffer = this.buffer;
+    data = Buffer.concat([this.buffer, data], data.length + this.buffer.length);
+  }
+
+  switch (this._bled112ParseingMode) {
+    case kOBCIBLED112ParsingDiscover:
+      break;
+    case kOBCIBLED112ParsingFindInfo:
+      break;
+    case kOBCIBLED112ParsingFindGroups:
+      break;
+    case kOBCIBLED112ParsingNormal:
+      break;
+    case k.OBCIParsingEOT:
+      if (obciUtils.doesBufferHaveEOT(data)) {
+        this.curParsingMode = k.OBCIParsingNormal;
+        this.emit(k.OBCIEmitterEot, data);
+        this.buffer = obciUtils.stripToEOTBuffer(data);
+      } else {
+        this.buffer = data;
+      }
+      break;
+    case k.OBCIParsingReset:
+      // Does the buffer have an EOT in it?
+      if (obciUtils.doesBufferHaveEOT(data)) {
+        this._processParseBufferForReset(data);
+        if (this.options.hardSet) {
+          if (!_.eq(this.getBoardType(), this.options.boardType)) {
+            this.emit(k.OBCIEmitterHardSet);
+            this.hardSetBoardType(this.options.boardType)
+              .then(() => {
+                this.emit(k.OBCIEmitterReady);
+              })
+              .catch((err) => {
+                this.emit(k.OBCIEmitterError, err);
+              });
+          } else {
+            this.curParsingMode = k.OBCIParsingNormal;
+            this.emit(k.OBCIEmitterReady);
+            this.buffer = obciUtils.stripToEOTBuffer(data);
+          }
+        } else {
+          if (!_.eq(this.getBoardType(), this.options.boardType) && this.options.verbose) {
+            console.log(`Module detected ${this.getBoardType()} board type but you specified ${this.options.boardType}, use 'hardSet' to force the module to correct itself`);
+          }
+          this.curParsingMode = k.OBCIParsingNormal;
+          this.emit(k.OBCIEmitterReady);
+          this.buffer = obciUtils.stripToEOTBuffer(data);
+        }
+      } else {
+        this.buffer = data;
+      }
+      break;
+    case k.OBCIParsingTimeSyncSent:
+      // If there is only one match
+      if (obciUtils.isTimeSyncSetConfirmationInBuffer(data)) {
+        if (this.options.verbose) console.log(`Found Time Sync Sent`);
+        this.sync.curSyncObj.timeSyncSentConfirmation = this.time();
+        this.curParsingMode = k.OBCIParsingNormal;
+      }
+      this.buffer = this._processDataBuffer(data);
+      break;
+    case k.OBCIParsingNormal:
+    default:
+      this.buffer = this._processDataBuffer(data);
+      break;
+  }
+
+  if (this.buffer && oldDataBuffer) {
+    if (bufferEqual(this.buffer, oldDataBuffer)) {
+      this.buffer = null;
+    }
+  }
+};
+
+Ganglion.prototype._bled112ProcessBytesDiscover = function (dataBuffer) {
+  if (!dataBuffer) {
+    return {
+      'buffer': dataBuffer,
+      'rawScanResponses': []
+    };
+  }
+  const scanResponseLength = 30;
+  let bytesToParse = dataBuffer.length;
+  let rawScanResponses = [];
+  // Exit if we have a buffer with less data than a packet
+  if (bytesToParse < scanResponseLength) {
+    return {
+      'buffer': dataBuffer,
+      'rawScanResponses': []
+    };
+  }
+
+  let parsePosition = 0;
+  // Begin parseing
+  while (parsePosition <= bytesToParse - scanResponseLength) {
+    // Is the current byte a head byte that looks like 0xA0
+    if (dataBuffer[parsePosition] === 0x80) {
+      // Now that we know the first is a head byte, let's see if the last one is a
+      //  tail byte 0xCx where x is the set of numbers from 0-F (hex)
+      if (dataBuffer[parsePosition + scanResponseLength - 1] === 0x61) {
+        // console.log(dataBuffer[parsePosition+1]);
+        /** We just qualified a raw packet */
+          // This could be a time set packet!
+          // this.timeOfPacketArrival = this.time();
+          // Grab the raw packet, make a copy of it.
+        let rawPacket = Buffer.from(dataBuffer.slice(parsePosition, parsePosition + scanResponseLength));
+
+
+        rawScanResponses.push(rawPacket);
+        // Submit the packet for processing
+        // Overwrite the dataBuffer with a new buffer
+        let tempBuf;
+        if (parsePosition > 0) {
+          tempBuf = Buffer.concat([dataBuffer.slice(0, parsePosition), dataBuffer.slice(parsePosition + scanResponseLength)], dataBuffer.byteLength - scanResponseLength);
+        } else {
+          tempBuf = dataBuffer.slice(scanResponseLength);
+        }
+        if (tempBuf.length === 0) {
+          dataBuffer = null;
+        } else {
+          dataBuffer = Buffer.from(tempBuf);
+        }
+        // Move the parse position up one packet
+        parsePosition = -1;
+        bytesToParse -= scanResponseLength;
+      }
+    }
+    parsePosition++;
+  }
+  return {
+    'buffer': dataBuffer,
+    'rawScanResponses': rawScanResponses
+  };
+};
+
+/**
+ * @description Used to extract samples out of a buffer of unknown length
+ * @param dataBuffer {Buffer} - A buffer to parse for samples
+ * @returns {ProcessedBuffer} - Object with parsed raw packets and remaining buffer. Calling function shall maintain
+ *  the buffer in it's scope.
+ * @author AJ Keller (@aj-ptw)
+ */
+extractRawDataPackets: (dataBuffer) => {
+  if (!dataBuffer) {
+    return {
+      'buffer': dataBuffer,
+      'rawDataPackets': []
+    };
+  }
+  let bytesToParse = dataBuffer.length;
+  let rawDataPackets = [];
+  // Exit if we have a buffer with less data than a packet
+  if (bytesToParse < k.OBCIPacketSize) {
+    return {
+      'buffer': dataBuffer,
+      'rawDataPackets': rawDataPackets
+    };
+  }
+
+  let parsePosition = 0;
+  // Begin parseing
+  while (parsePosition <= bytesToParse - k.OBCIPacketSize) {
+    // Is the current byte a head byte that looks like 0xA0
+    if (dataBuffer[parsePosition] === k.OBCIByteStart) {
+      // Now that we know the first is a head byte, let's see if the last one is a
+      //  tail byte 0xCx where x is the set of numbers from 0-F (hex)
+      if (isStopByte(dataBuffer[parsePosition + k.OBCIPacketSize - 1])) {
+        // console.log(dataBuffer[parsePosition+1]);
+        /** We just qualified a raw packet */
+          // This could be a time set packet!
+          // this.timeOfPacketArrival = this.time();
+          // Grab the raw packet, make a copy of it.
+        let rawPacket;
+        if (k.getVersionNumber(process.version) >= 6) {
+          // From introduced in node version 6.x.x
+          rawPacket = Buffer.from(dataBuffer.slice(parsePosition, parsePosition + k.OBCIPacketSize));
+        } else {
+          rawPacket = new Buffer(dataBuffer.slice(parsePosition, parsePosition + k.OBCIPacketSize));
+        }
+
+        // Emit that buffer
+        // this.emit('rawDataPacket', rawPacket);
+        rawDataPackets.push(rawPacket);
+        // Submit the packet for processing
+        // this._processQualifiedPacket(rawPacket);
+        // Overwrite the dataBuffer with a new buffer
+        let tempBuf;
+        if (parsePosition > 0) {
+          tempBuf = Buffer.concat([dataBuffer.slice(0, parsePosition), dataBuffer.slice(parsePosition + k.OBCIPacketSize)], dataBuffer.byteLength - k.OBCIPacketSize);
+        } else {
+          tempBuf = dataBuffer.slice(k.OBCIPacketSize);
+        }
+        if (tempBuf.length === 0) {
+          dataBuffer = null;
+        } else {
+          if (k.getVersionNumber(process.version) >= 6) {
+            dataBuffer = Buffer.from(tempBuf);
+          } else {
+            dataBuffer = new Buffer(tempBuf);
+          }
+        }
+        // Move the parse position up one packet
+        parsePosition = -1;
+        bytesToParse -= k.OBCIPacketSize;
+      }
+    }
+    parsePosition++;
+  }
+  return {
+    'buffer': dataBuffer,
+    'rawDataPackets': rawDataPackets
+  };
+},
 
 Ganglion.prototype._bled112Ready = function () {
   return this._bled112Connected;
@@ -1387,11 +1667,14 @@ Ganglion.prototype._bled112RspGroupType = function (data) {
 Ganglion.prototype._bled112ScanStart = function () {
   return new Promise((resolve, reject) => {
     if (this.isSearching()) return reject(k.OBCIErrorNobleAlreadyScanning);
-    if (!this._nobleReady()) return reject(k.OBCIErrorNobleNotInPoweredOnState);
 
     this.peripheralArray = [];
 
-    this._bled112WriteAndDrain(new Buffer())
+    this._bled112WriteAndDrain(this._bled112GetDiscover())
+      .then(() => {
+        this._bled112ParseingMode = kOBCIBLED112ParsingDiscover;
+        resolve();
+      })
       .catch((err) => {
         reject(err);
       });
@@ -1417,10 +1700,10 @@ Ganglion.prototype._bled112ScanStop = function () {
  * @author AJ Keller (@pushtheworldllc)
  */
 Ganglion.prototype._bled112WriteAndDrain = function (data) {
-  if (this.options.debug) obciDebug.debugBytes('>>>', data);
+  if (this.options.debug) debug.default('>>>', data);
 
   return new Promise((resolve, reject) => {
-    if (!this.isConnected()) return reject(Error('Serial port not open'));
+    if (!this._bled112Connected) return reject(Error('Serial port not open'));
     this.serial.write(data, (error) => {
       if (error) {
         console.log('Error [writeAndDrain]: ' + error);

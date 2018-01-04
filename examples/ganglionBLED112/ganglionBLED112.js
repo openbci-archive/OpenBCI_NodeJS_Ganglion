@@ -73,7 +73,7 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
     console.log('ready');
   });
 
-  ganglion.connect('Ganglion-58f3').catch(errorFunc);
+  ganglion.connect(peripheral).catch(errorFunc);
 });
 
 function exitHandler (options, err) {
