@@ -345,7 +345,7 @@ describe('#ganglion', function () {
       expect(actualOutput).to.deep.equal(expectedOutput);
     });
   });
-  describe('#_bled112ProcessBytes', function () {
+  describe('#_bled112ProcessRaw', function () {
     afterEach(function () {
       ganglion.bled112CleanupEmitters();
     });
@@ -355,10 +355,10 @@ describe('#ganglion', function () {
         ganglion.once('bleEvtAttclientProcedureCompleted', () => {
           done();
         });
-        ganglion._bled112ProcessBytes(rawBuf);
+        ganglion._bled112ProcessRaw(rawBuf);
       });
       it('returns', function () {
-        const retVal = ganglion._bled112ProcessBytes(rawBuf);
+        const retVal = ganglion._bled112ProcessRaw(rawBuf);
         expect(retVal).to.not.equal(null);
       });
     });
@@ -368,10 +368,10 @@ describe('#ganglion', function () {
         ganglion.once('bleRspAttclientAttributeWrite', () => {
           done();
         });
-        ganglion._bled112ProcessBytes(rawBuf);
+        ganglion._bled112ProcessRaw(rawBuf);
       });
       it('returns', function () {
-        const retVal = ganglion._bled112ProcessBytes(rawBuf);
+        const retVal = ganglion._bled112ProcessRaw(rawBuf);
         expect(retVal).to.not.equal(null);
       });
     });
@@ -381,10 +381,10 @@ describe('#ganglion', function () {
         ganglion.once('bleRspAttclientFindInfomationFound', () => {
           done();
         });
-        ganglion._bled112ProcessBytes(rawBuf);
+        ganglion._bled112ProcessRaw(rawBuf);
       });
       it('returns', function () {
-        const retVal = ganglion._bled112ProcessBytes(rawBuf);
+        const retVal = ganglion._bled112ProcessRaw(rawBuf);
         expect(retVal).to.not.equal(null);
       });
     });
@@ -394,10 +394,10 @@ describe('#ganglion', function () {
         ganglion.once('bleRspAttclientReadByGroupType', () => {
           done();
         });
-        ganglion._bled112ProcessBytes(rawBuf);
+        ganglion._bled112ProcessRaw(rawBuf);
       });
       it('returns', function () {
-        const retVal = ganglion._bled112ProcessBytes(rawBuf);
+        const retVal = ganglion._bled112ProcessRaw(rawBuf);
         expect(retVal).to.not.equal(null);
       });
     });
@@ -417,10 +417,10 @@ describe('#ganglion', function () {
           expect(obj).to.deep.equal(fooBar);
           done();
         });
-        ganglion._bled112ProcessBytes(rawBuf);
+        ganglion._bled112ProcessRaw(rawBuf);
       });
       it('returns', function () {
-        const retVal = ganglion._bled112ProcessBytes(rawBuf);
+        const retVal = ganglion._bled112ProcessRaw(rawBuf);
         expect(retVal).to.equal(fooBar);
       });
     });
@@ -440,18 +440,18 @@ describe('#ganglion', function () {
           expect(obj).to.deep.equal(fooBar);
           done();
         });
-        ganglion._bled112ProcessBytes(rawBuf);
+        ganglion._bled112ProcessRaw(rawBuf);
       });
       it('returns', function () {
-        const retVal = ganglion._bled112ProcessBytes(rawBuf);
+        const retVal = ganglion._bled112ProcessRaw(rawBuf);
         expect(retVal).to.equal(fooBar);
       });
     });
     describe('BLED112EvtGapScanResponse', function () {
       const rawBuf = new Buffer([0x80, 0x1A, 0x06, 0x00, 0xCD, 0x00, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0xFF, 0x0F, 0x0E, 0x09, 0x47, 0x61, 0x6E, 0x67, 0x6C, 0x69, 0x6F, 0x6E, 0x2D, 0x35, 0x34, 0x63, 0x61]);
-      const mockPeripheral11 = {'rssi': -50, 'sender': Buffer.from([0, 1, 2, 3, 4, 5])};
-      const mockPeripheral12 = {'rssi': -51, 'sender': Buffer.from([0, 1, 2, 3, 4, 5])};
-      const mockPeripheral2 = {'rssi': -60, 'sender': Buffer.from([6, 7, 8, 9, 10, 11])};
+      const mockPeripheral11 = {'rssi': -50, 'advertisementDataString': 'Ganglion-23ca','sender': Buffer.from([0, 1, 2, 3, 4, 5])};
+      const mockPeripheral12 = {'rssi': -51, 'advertisementDataString': 'Ganglion-23ca','sender': Buffer.from([0, 1, 2, 3, 4, 5])};
+      const mockPeripheral2 = {'rssi': -60, 'advertisementDataString': 'Ganglion-23cb','sender': Buffer.from([6, 7, 8, 9, 10, 11])};
       let funcStub;
       before(() => {
         funcStub = sinon.stub(ganglion, '_bled112DeviceFound');
@@ -463,22 +463,29 @@ describe('#ganglion', function () {
       after(() => {
         funcStub.reset();
       });
-      it('emit', function (done) {
+      it('emit bleEvtGapScanResponse', function (done) {
         ganglion.once('bleEvtGapScanResponse', (obj) => {
           expect(obj).to.deep.equal(mockPeripheral11);
           done();
         });
-        ganglion._bled112ProcessBytes(rawBuf);
+        ganglion._bled112ProcessRaw(rawBuf);
+      });
+      it('emit ganglionFound', function (done) {
+        ganglion.once('ganglionFound', (obj) => {
+          expect(obj).to.deep.equal(mockPeripheral11);
+          done();
+        });
+        ganglion._bled112ProcessRaw(rawBuf);
       });
       it('returns', function () {
-        const retVal = ganglion._bled112ProcessBytes(rawBuf);
+        const retVal = ganglion._bled112ProcessRaw(rawBuf);
         expect(retVal).to.equal(mockPeripheral11);
         expect(ganglion.peripheralArray[0]).to.deep.equal(mockPeripheral11);
         funcStub.returns(mockPeripheral12);
-        ganglion._bled112ProcessBytes(rawBuf);
+        ganglion._bled112ProcessRaw(rawBuf);
         expect(ganglion.peripheralArray[0]).to.deep.equal(mockPeripheral12);
         funcStub.returns(mockPeripheral2);
-        ganglion._bled112ProcessBytes(rawBuf);
+        ganglion._bled112ProcessRaw(rawBuf);
         expect(ganglion.peripheralArray[1]).to.deep.equal(mockPeripheral2);
       });
     });
@@ -498,10 +505,10 @@ describe('#ganglion', function () {
           expect(obj).to.deep.equal(fooBar);
           done();
         });
-        ganglion._bled112ProcessBytes(rawBuf);
+        ganglion._bled112ProcessRaw(rawBuf);
       });
       it('returns', function () {
-        const retVal = ganglion._bled112ProcessBytes(rawBuf);
+        const retVal = ganglion._bled112ProcessRaw(rawBuf);
         expect(retVal).to.equal(fooBar);
       });
     });
@@ -521,10 +528,10 @@ describe('#ganglion', function () {
           expect(obj).to.deep.equal(fooBar);
           done();
         });
-        ganglion._bled112ProcessBytes(rawBuf);
+        ganglion._bled112ProcessRaw(rawBuf);
       });
       it('returns', function () {
-        const retVal = ganglion._bled112ProcessBytes(rawBuf);
+        const retVal = ganglion._bled112ProcessRaw(rawBuf);
         expect(retVal).to.equal(fooBar);
       });
     });
@@ -544,31 +551,234 @@ describe('#ganglion', function () {
           expect(obj).to.deep.equal(fooBar);
           done();
         });
-        ganglion._bled112ProcessBytes(rawBuf);
+        ganglion._bled112ProcessRaw(rawBuf);
       });
       it('returns', function () {
-        const retVal = ganglion._bled112ProcessBytes(rawBuf);
+        const retVal = ganglion._bled112ProcessRaw(rawBuf);
         expect(retVal).to.equal(fooBar);
       });
     });
   });
-  describe('#_bled112ProcessBytesDiscover', function () {
+  describe('#_bled112ParseForRaws', function () {
     it('should be able to extract scan response when only thing in input data', function () {
       const expectedScanResponse = Buffer.from([0x80, 0x1A, 0x06, 0x00, 0xCD, 0x00, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0xFF, 0x0F, 0x0E, 0x09, 0x47, 0x61, 0x6E, 0x67, 0x6C, 0x69, 0x6F, 0x6E, 0x2D, 0x35, 0x34, 0x63, 0x61]);
 
-      const actualOutput = ganglion._bled112ProcessBytesDiscover(expectedScanResponse);
+      const inputObj = ganglion._bled112GetParsingDiscover(expectedScanResponse);
+      const actualOutput = ganglion._bled112ParseForRaws(inputObj);
 
-      expect(actualOutput.scanResponses[0]).to.deep.equal(expectedScanResponse);
+      expect(actualOutput.raws[0]).to.deep.equal(expectedScanResponse);
+      expect(actualOutput.raws.length).to.equal(1);
+      expect(actualOutput.buffer).to.equal(null);
     });
-    it('should be able to extract one scan responses and discard junk in front', function () {
+    it('should be able to extract one scan responses and keep junk in front', function () {
       const junk = Buffer.from([0x06, 0x00, 0xbd, 0x00, 0xd9, 0x66, 0xce, 0x00, 0x53, 0xe9, 0x01, 0xff, 0x0f, 0x0e, 0x09, 0x47]);
       const scanResponse1 = Buffer.from([0x80, 0x1A, 0x06, 0x00, 0xCD, 0x00, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0xFF, 0x0F, 0x0E, 0x09, 0x47, 0x61, 0x6E, 0x67, 0x6C, 0x69, 0x6F, 0x6E, 0x2D, 0x35, 0x34, 0x63, 0x61]);
-      const inputData = Buffer.from([junk, scanResponse1]);
+      const inputData = Buffer.concat([junk, scanResponse1]);
 
-      const actualOutput = ganglion._bled112ProcessBytesDiscover(inputData);
+      const inputObj = ganglion._bled112GetParsingDiscover(inputData);
+      const actualOutput = ganglion._bled112ParseForRaws(inputObj);
 
-      expect(actualOutput.scanResponses[0]).to.deep.equal(scanResponse1);
+      expect(actualOutput.raws[0]).to.deep.equal(scanResponse1);
+      expect(actualOutput.raws.length).to.equal(1);
+      expect(actualOutput.buffer).to.deep.equal(junk);
+    });
+    it('should be able to extract two scan responses and keep junk in front', function () {
+      const junk = Buffer.from([0x06, 0x00, 0xbd, 0x00, 0xd9, 0x66, 0xce, 0x00, 0x53, 0xe9, 0x01, 0xff, 0x0f, 0x0e, 0x09, 0x47]);
+      const scanResponse1 = Buffer.from([0x80, 0x1A, 0x06, 0x00, 0xCD, 0x00, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0xFF, 0x0F, 0x0E, 0x09, 0x47, 0x61, 0x6E, 0x67, 0x6C, 0x69, 0x6F, 0x6E, 0x2D, 0x35, 0x34, 0x63, 0x61]);
+      const scanResponse2 = Buffer.from([0x80, 0x1A, 0x06, 0x00, 0xCD, 0x00, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0xFF, 0x0F, 0x0E, 0x09, 0x47, 0x61, 0x6E, 0x67, 0x6C, 0x69, 0x6F, 0x6E, 0x2D, 0x35, 0x34, 0x63, 0x61]);
+      const inputData = Buffer.concat([junk, scanResponse1, scanResponse2]);
+
+      const inputObj = ganglion._bled112GetParsingDiscover(inputData);
+      const actualOutput = ganglion._bled112ParseForRaws(inputObj);
+
+      expect(actualOutput.raws[0]).to.deep.equal(scanResponse1);
+      expect(actualOutput.raws[1]).to.deep.equal(scanResponse2);
+      expect(actualOutput.raws.length).to.equal(2);
+      expect(actualOutput.buffer).to.deep.equal(junk);
+    });
+    it('should be able to extract one scan responses and concat junk in front with segment of next scan response', function () {
+      const junk = Buffer.from([0x06, 0x00, 0xbd, 0x00, 0xd9, 0x66, 0xce, 0x00, 0x53, 0xe9, 0x01, 0xff, 0x0f, 0x0e, 0x09, 0x47]);
+      const scanResponse1 = Buffer.from([0x80, 0x1A, 0x06, 0x00, 0xCD, 0x00, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0xFF, 0x0F, 0x0E, 0x09, 0x47, 0x61, 0x6E, 0x67, 0x6C, 0x69, 0x6F, 0x6E, 0x2D, 0x35, 0x34, 0x63, 0x61]);
+      const halfScanResponse2 = Buffer.from([0x80, 0x1A, 0x06, 0x00, 0xCD, 0x00, 0xD9]);
+      const inputData = Buffer.concat([junk, scanResponse1, halfScanResponse2]);
+
+      const inputObj = ganglion._bled112GetParsingDiscover(inputData);
+      const actualOutput = ganglion._bled112ParseForRaws(inputObj);
+
+      expect(actualOutput.raws[0]).to.deep.equal(scanResponse1);
+      expect(actualOutput.raws.length).to.equal(1);
+      expect(actualOutput.buffer).to.deep.equal(Buffer.concat([junk, halfScanResponse2]));
+    });
+    it('should be able to get one group found', function () {
+      const expectedGroupFoundResponse = Buffer.from([0x80, 0x08, 0x04, 0x02, 0x00, 0x17, 0x00, 0x1E, 0x00, 0x02, 0x84, 0xFE]);
+
+      const inputObj = ganglion._bled112GetParsingGroup(expectedGroupFoundResponse);
+      const actualOutput = ganglion._bled112ParseForRaws(inputObj);
+
+      expect(actualOutput.raws[0]).to.deep.equal(expectedGroupFoundResponse);
+      expect(actualOutput.raws.length).to.equal(1);
       expect(actualOutput.buffer).to.equal(null);
+    });
+    it('should be able to extract one group found and keep junk in front', function () {
+      const junk = Buffer.from([0x06, 0x00, 0xbd, 0x00, 0xd9, 0x66, 0xce, 0x00, 0x53, 0xe9, 0x01, 0xff, 0x0f, 0x0e, 0x09, 0x47]);
+      const scanResponse1 = Buffer.from([0x80, 0x08, 0x04, 0x02, 0x00, 0x17, 0x00, 0x1E, 0x00, 0x02, 0x84, 0xFE]);
+      const inputData = Buffer.concat([junk, scanResponse1]);
+
+      const inputObj = ganglion._bled112GetParsingGroup(inputData);
+      const actualOutput = ganglion._bled112ParseForRaws(inputObj);
+
+      expect(actualOutput.raws[0]).to.deep.equal(scanResponse1);
+      expect(actualOutput.raws.length).to.equal(1);
+      expect(actualOutput.buffer).to.deep.equal(junk);
+    });
+    it('should be able to extract two group found responses and keep junk in front', function () {
+      const junk = Buffer.from([0x06, 0x00, 0xbd, 0x00, 0xd9, 0x66, 0xce, 0x00, 0x53, 0xe9, 0x01, 0xff, 0x0f, 0x0e, 0x09, 0x47]);
+      const scanResponse1 = Buffer.from([0x80, 0x08, 0x04, 0x02, 0x00, 0x17, 0x00, 0x1E, 0x00, 0x02, 0x84, 0xFE]);
+      const scanResponse2 = Buffer.from([0x80, 0x08, 0x04, 0x02, 0x00, 0x17, 0x00, 0x1E, 0x00, 0x02, 0x01, 0x80]);
+      const inputData = Buffer.concat([junk, scanResponse1, scanResponse2]);
+
+      const inputObj = ganglion._bled112GetParsingGroup(inputData);
+      const actualOutput = ganglion._bled112ParseForRaws(inputObj);
+
+      expect(actualOutput.raws[0]).to.deep.equal(scanResponse1);
+      expect(actualOutput.raws[1]).to.deep.equal(scanResponse2);
+      expect(actualOutput.raws.length).to.equal(2);
+      expect(actualOutput.buffer).to.deep.equal(junk);
+    });
+    it('should be able to extract one group found responses and concat junk in front with junk in end, which is a segment of next scan response', function () {
+      const junk = Buffer.from([0x06, 0x00, 0xbd, 0x00, 0xd9, 0x66, 0xce, 0x00, 0x53, 0xe9, 0x01, 0xff, 0x0f, 0x0e, 0x09, 0x47]);
+      const scanResponse1 = Buffer.from([0x80, 0x08, 0x04, 0x02, 0x00, 0x17, 0x00, 0x1E, 0x00, 0x02, 0x84, 0xFE]);
+      const halfScanResponse2 = Buffer.from([0x80, 0x08, 0x04, 0x02, 0x00, 0x17]);
+      const inputData = Buffer.concat([junk, scanResponse1, halfScanResponse2]);
+
+      const inputObj = ganglion._bled112GetParsingGroup(inputData);
+      const actualOutput = ganglion._bled112ParseForRaws(inputObj);
+
+      expect(actualOutput.raws[0]).to.deep.equal(scanResponse1);
+      expect(actualOutput.raws.length).to.equal(1);
+      expect(actualOutput.buffer).to.deep.equal(Buffer.concat([junk, halfScanResponse2]));
+    });
+    it('should be able to get one find info found with long uuid', function () {
+      const expectedFindInfoLong = Buffer.from([0x80, 0x06, 0x04, 0x04, 0x01, 0x19, 0x00, 0x10, 0x96, 0x05, 0x48, 0xEA, 0x84, 0x34, 0x3F, 0x92, 0xE6, 0x4C, 0x9F, 0xF3, 0x82, 0xC0, 0x30, 0x2D]);
+
+      const inputObj = ganglion._bled112GetParsingFindInfoLong(expectedFindInfoLong);
+      const actualOutput = ganglion._bled112ParseForRaws(inputObj);
+
+      expect(actualOutput.raws[0]).to.deep.equal(expectedFindInfoLong);
+      expect(actualOutput.raws.length).to.equal(1);
+      expect(actualOutput.buffer).to.equal(null);
+    });
+    it('should be able to get one find info found with short uuid', function () {
+      const expectedFindInfoShort = Buffer.from([0x80, 0x06, 0x04, 0x04, 0x01, 0x1A, 0x00, 0x02, 0x02, 0x29]);
+
+      const inputObj = ganglion._bled112GetParsingFindInfoShort(expectedFindInfoShort);
+      const actualOutput = ganglion._bled112ParseForRaws(inputObj);
+
+      expect(actualOutput.raws[0]).to.deep.equal(expectedFindInfoShort);
+      expect(actualOutput.raws.length).to.equal(1);
+      expect(actualOutput.buffer).to.equal(null);
+    });
+    it('should be able to get one find info found with short uuid and then one with long', function () {
+      const expectedFindInfoShort = Buffer.from([0x80, 0x06, 0x04, 0x04, 0x01, 0x1A, 0x00, 0x02, 0x02, 0x29]);
+      const expectedFindInfoLong = Buffer.from([0x80, 0x06, 0x04, 0x04, 0x01, 0x19, 0x00, 0x10, 0x96, 0x05, 0x48, 0xEA, 0x84, 0x34, 0x3F, 0x92, 0xE6, 0x4C, 0x9F, 0xF3, 0x82, 0xC0, 0x30, 0x2D]);
+
+      const inputData = Buffer.concat([expectedFindInfoShort, expectedFindInfoLong]);
+
+      let inputObj = ganglion._bled112GetParsingFindInfoShort(inputData);
+      const actualOutputShort = ganglion._bled112ParseForRaws(inputObj);
+      expect(actualOutputShort.raws[0]).to.deep.equal(expectedFindInfoShort);
+      expect(actualOutputShort.raws.length).to.equal(1);
+      expect(actualOutputShort.buffer).to.deep.equal(expectedFindInfoLong);
+
+      inputObj = ganglion._bled112GetParsingFindInfoLong(actualOutputShort.buffer);
+      const actualOutputLong = ganglion._bled112ParseForRaws(inputObj);
+
+      expect(actualOutputLong.raws[0]).to.deep.equal(expectedFindInfoLong);
+      expect(actualOutputLong.raws.length).to.equal(1);
+      expect(actualOutputLong.buffer).to.equal(null);
+    });
+    it('should be able to get one find info found with long uuid and then one with short', function () {
+      const expectedFindInfoShort = Buffer.from([0x80, 0x06, 0x04, 0x04, 0x01, 0x1A, 0x00, 0x02, 0x02, 0x29]);
+      const expectedFindInfoLong = Buffer.from([0x80, 0x06, 0x04, 0x04, 0x01, 0x19, 0x00, 0x10, 0x96, 0x05, 0x48, 0xEA, 0x84, 0x34, 0x3F, 0x92, 0xE6, 0x4C, 0x9F, 0xF3, 0x82, 0xC0, 0x30, 0x2D]);
+
+      const inputData = Buffer.concat([expectedFindInfoLong, expectedFindInfoShort]);
+
+      let inputObj = ganglion._bled112GetParsingFindInfoShort(inputData);
+      const actualOutputShort = ganglion._bled112ParseForRaws(inputObj);
+      expect(actualOutputShort.raws[0]).to.deep.equal(expectedFindInfoShort);
+      expect(actualOutputShort.raws.length).to.equal(1);
+      expect(actualOutputShort.buffer).to.deep.equal(expectedFindInfoLong);
+
+      inputObj = ganglion._bled112GetParsingFindInfoLong(actualOutputShort.buffer);
+      const actualOutputLong = ganglion._bled112ParseForRaws(inputObj);
+
+      expect(actualOutputLong.raws[0]).to.deep.equal(expectedFindInfoLong);
+      expect(actualOutputLong.raws.length).to.equal(1);
+      expect(actualOutputLong.buffer).to.equal(null);
+    });
+    it('should be able to get one find info found with short, long, short', function () {
+      const expectedFindInfoShort1 = Buffer.from([0x80, 0x06, 0x04, 0x04, 0x01, 0x1A, 0x00, 0x02, 0x02, 0x29]);
+      const expectedFindInfoLong = Buffer.from([0x80, 0x06, 0x04, 0x04, 0x01, 0x19, 0x00, 0x10, 0x96, 0x05, 0x48, 0xEA, 0x84, 0x34, 0x3F, 0x92, 0xE6, 0x4C, 0x9F, 0xF3, 0x82, 0xC0, 0x30, 0x2D]);
+      const expectedFindInfoShort2 = Buffer.from([0x80, 0x06, 0x04, 0x04, 0x01, 0x1A, 0x00, 0x02, 0x03, 0x29]);
+
+      const inputData = Buffer.concat([expectedFindInfoShort1, expectedFindInfoLong, expectedFindInfoShort2]);
+
+      let inputObj = ganglion._bled112GetParsingFindInfoShort(inputData);
+      const actualOutputShort = ganglion._bled112ParseForRaws(inputObj);
+      expect(actualOutputShort.raws[0]).to.deep.equal(expectedFindInfoShort1);
+      expect(actualOutputShort.raws[1]).to.deep.equal(expectedFindInfoShort2);
+      expect(actualOutputShort.raws.length).to.equal(2);
+      expect(actualOutputShort.buffer).to.deep.equal(expectedFindInfoLong);
+
+      inputObj = ganglion._bled112GetParsingFindInfoLong(actualOutputShort.buffer);
+      const actualOutputLong = ganglion._bled112ParseForRaws(inputObj);
+
+      expect(actualOutputLong.raws[0]).to.deep.equal(expectedFindInfoLong);
+      expect(actualOutputLong.raws.length).to.equal(1);
+      expect(actualOutputLong.buffer).to.equal(null);
+    });
+    it('should be able to get one find info found with long, short, long', function () {
+      const expectedFindInfoLong1 = Buffer.from([0x80, 0x06, 0x04, 0x04, 0x01, 0x19, 0x00, 0x10, 0x96, 0x05, 0x48, 0xEA, 0x84, 0x34, 0x3F, 0x92, 0xE6, 0x4C, 0x9F, 0xF3, 0x82, 0xC0, 0x30, 0x2D]);
+      const expectedFindInfoShort = Buffer.from([0x80, 0x06, 0x04, 0x04, 0x01, 0x1A, 0x00, 0x02, 0x02, 0x29]);
+      const expectedFindInfoLong2 = Buffer.from([0x80, 0x06, 0x04, 0x04, 0x01, 0x19, 0x00, 0x10, 0x96, 0x05, 0x48, 0xEA, 0x84, 0x34, 0x3F, 0x92, 0xE6, 0x4C, 0x9F, 0xF3, 0x82, 0xC0, 0x30, 0x2C]);
+
+      const inputData = Buffer.concat([expectedFindInfoLong1, expectedFindInfoShort, expectedFindInfoLong2]);
+
+      let inputObj = ganglion._bled112GetParsingFindInfoShort(inputData);
+      const actualOutputShort = ganglion._bled112ParseForRaws(inputObj);
+      expect(actualOutputShort.raws[0]).to.deep.equal(expectedFindInfoShort);
+      expect(actualOutputShort.raws.length).to.equal(1);
+      expect(actualOutputShort.buffer).to.deep.equal(Buffer.concat([expectedFindInfoLong1, expectedFindInfoLong2]));
+
+      inputObj = ganglion._bled112GetParsingFindInfoLong(actualOutputShort.buffer);
+      const actualOutputLong = ganglion._bled112ParseForRaws(inputObj);
+
+      expect(actualOutputLong.raws[0]).to.deep.equal(expectedFindInfoLong1);
+      expect(actualOutputLong.raws[1]).to.deep.equal(expectedFindInfoLong2);
+      expect(actualOutputLong.raws.length).to.equal(2);
+      expect(actualOutputLong.buffer).to.equal(null);
+    });
+    it('should be able to get one find info found with long, short and return half of long', function () {
+      const junk = Buffer.from([0x19, 0x00, 0x10, 0x96, 0x05, 0x48, 0xEA, 0x84, 0x34, 0x3F, 0x92, 0xE6, 0x4C, 0x9F, 0xF3, 0x82, 0xC0, 0x30, 0x2D]);
+      const expectedFindInfoLong = Buffer.from([0x80, 0x06, 0x04, 0x04, 0x01, 0x19, 0x00, 0x10, 0x96, 0x05, 0x48, 0xEA, 0x84, 0x34, 0x3F, 0x92, 0xE6, 0x4C, 0x9F, 0xF3, 0x82, 0xC0, 0x30, 0x2D]);
+      const junk2 = Buffer.from([0x19, 0x00, 0x10, 0x96, 0x05, 0x48, 0xEA, 0x84, 0x34, 0x3F, 0x92, 0xE6, 0x4C, 0x9F, 0xF3, 0x82, 0xC0, 0x30, 0x2D]);
+      const expectedFindInfoShort = Buffer.from([0x80, 0x06, 0x04, 0x04, 0x01, 0x1A, 0x00, 0x02, 0x02, 0x29]);
+      const expectedHalfFindInfoLong = Buffer.from([0x80, 0x06, 0x04, 0x04, 0x01, 0x19, 0x00, 0x10, 0x96, 0x05]);
+
+      const inputData = Buffer.concat([junk, expectedFindInfoLong, junk2, expectedFindInfoShort, expectedHalfFindInfoLong]);
+
+      let inputObj = ganglion._bled112GetParsingFindInfoShort(inputData);
+      const actualOutputShort = ganglion._bled112ParseForRaws(inputObj);
+      expect(actualOutputShort.raws[0]).to.deep.equal(expectedFindInfoShort);
+      expect(actualOutputShort.raws.length).to.equal(1);
+      expect(actualOutputShort.buffer).to.deep.equal(Buffer.concat([junk, expectedFindInfoLong, junk2, expectedHalfFindInfoLong]));
+
+      inputObj = ganglion._bled112GetParsingFindInfoLong(actualOutputShort.buffer);
+      const actualOutputLong = ganglion._bled112ParseForRaws(inputObj);
+
+      expect(actualOutputLong.raws[0]).to.deep.equal(expectedFindInfoLong);
+      expect(actualOutputLong.raws.length).to.equal(1);
+      expect(actualOutputLong.buffer).to.deep.equal(Buffer.concat([junk, junk2, expectedHalfFindInfoLong]));
     });
   });
   describe('#_bled112RspAttributeWrite', function () {
@@ -586,6 +796,49 @@ describe('#ganglion', function () {
       const actualOutput = ganglion._bled112RspAttributeWrite(rawBuf);
 
       expect(actualOutput).to.deep.equal(expectedOutput);
+    });
+  });
+  describe('#_bled112ProcessBytes', function () {
+    let funcStub;
+    before(() => {
+      funcStub = sinon.stub(ganglion, '_bled112ProcessRaw');
+    });
+    after(() => {
+      funcStub.reset();
+    });
+    afterEach(() => {
+      funcStub.resetHistory();
+      ganglion.buffer = null;
+    });
+    it('should be able to get find info founds', function () {
+      const expectedFindInfoLong1 = Buffer.from([0x80, 0x06, 0x04, 0x04, 0x01, 0x19, 0x00, 0x10, 0x96, 0x05, 0x48, 0xEA, 0x84, 0x34, 0x3F, 0x92, 0xE6, 0x4C, 0x9F, 0xF3, 0x82, 0xC0, 0x30, 0x2D]);
+      const expectedFindInfoShort = Buffer.from([0x80, 0x06, 0x04, 0x04, 0x01, 0x1A, 0x00, 0x02, 0x02, 0x29]);
+      const expectedFindInfoLong2 = Buffer.from([0x80, 0x06, 0x04, 0x04, 0x01, 0x19, 0x00, 0x10, 0x96, 0x05, 0x48, 0xEA, 0x84, 0x34, 0x3F, 0x92, 0xE6, 0x4C, 0x9F, 0xF3, 0x82, 0xC0, 0x30, 0x2C]);
+
+      const inputData = Buffer.concat([expectedFindInfoLong1, expectedFindInfoShort, expectedFindInfoLong2]);
+
+      // Set driver to look for find info founds
+      ganglion._bled112ParseForFindInfoFound();
+      ganglion._bled112ProcessBytes(inputData);
+
+      expect(funcStub.args[0][0]).to.deep.equal(expectedFindInfoShort);
+      expect(funcStub.args[1][0]).to.deep.equal(expectedFindInfoLong1);
+      expect(funcStub.args[2][0]).to.deep.equal(expectedFindInfoLong2);
+    });
+    it('should be able to find one group found responses and concat junk in front with junk in end, which is a segment of next scan response', function () {
+      const junk = Buffer.from([0x06, 0x00, 0xbd, 0x00, 0xd9, 0x66, 0xce, 0x00, 0x53, 0xe9, 0x01, 0xff, 0x0f, 0x0e, 0x09, 0x47]);
+      const scanResponse1 = Buffer.from([0x80, 0x08, 0x04, 0x02, 0x00, 0x17, 0x00, 0x1E, 0x00, 0x02, 0x84, 0xFE]);
+      const halfScanResponse2 = Buffer.from([0x80, 0x08, 0x04, 0x02, 0x00, 0x17]);
+      const inputData = Buffer.concat([junk, scanResponse1, halfScanResponse2]);
+
+      // Set driver to look for groups
+      ganglion._bled112ParseForGroup();
+      ganglion._bled112ProcessBytes(inputData);
+
+      expect(funcStub.args[0][0]).to.deep.equal(scanResponse1);
+      expect(funcStub.callCount).to.equal(1);
+      // Should keep other stuff in the buffer
+      expect(ganglion.buffer).to.deep.equal(Buffer.concat([junk, halfScanResponse2]));
     });
   });
   describe('#_bled112RspFindInformationFound', function () {
