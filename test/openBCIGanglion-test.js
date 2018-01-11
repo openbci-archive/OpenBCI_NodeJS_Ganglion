@@ -62,6 +62,29 @@ describe('#ganglion', function () {
     // Make writeable
 
   });
+  describe('#_bled112AttributeValue', function () {
+    it('should be able to get the connection, atthandle type and value', function () {
+      const rawBuf = Buffer.from([0x80, 0x19, 0x04, 0x05, 0x00, 0x19, 0x00, 0x01, 0x14, 0x6A, 0x00, 0x97, 0xC0, 0x2A, 0x30, 0x01, 0x38, 0x01, 0x59, 0x60, 0x17, 0x64, 0x03, 0x83, 0x00, 0x78, 0x30, 0x02, 0xB2]);
+
+      const expectedConnection = 0;
+      const expectedCharacteristicHandle = 25;
+      const expectedCharacteristicHandleRaw = Buffer.from([0x00, 0x19]);
+      const expectedType = 1;
+      const expectedValue = Buffer.from([0x6A, 0x00, 0x97, 0xC0, 0x2A, 0x30, 0x01, 0x38, 0x01, 0x59, 0x60, 0x17, 0x64, 0x03, 0x83, 0x00, 0x78, 0x30, 0x02, 0xB2]);;
+
+      const expectedOutput = {
+        characteristicHandle: expectedCharacteristicHandle,
+        characteristicHandleRaw: expectedCharacteristicHandleRaw,
+        connection: expectedConnection,
+        type: expectedType,
+        value: expectedValue
+      };
+
+      const actualOutput = ganglion._bled112AttributeValue(rawBuf);
+
+      expect(actualOutput).to.deep.equal(expectedOutput);
+    });
+  });
   describe('#_bled112ConnectDirect', function () {
     it('should be able to get the connection result connection handle', function () {
       const rawBuf = Buffer.from([0x00, 0x03, 0x06, 0x03, 0x00, 0x00, 0x01]);

@@ -131,6 +131,15 @@ function Ganglion (options, callback) {
   this._bled112Connected = false;
   this._bled112Connection = 0;
   this._bled112ParsingMode = kOBCIBLED112ParsingNormal;
+  this._bled112ParsingAttributeValue = {
+    buffer: Buffer.from([]),
+    length: 24,
+    verify: {
+      position: 8,
+      value: 0x14
+    },
+    word: bleEvtAttclientAttributeValue
+  };
   this._bled112ParsingDiscover = {
     buffer: Buffer.from([]),
     head: 0x80,
@@ -894,6 +903,7 @@ const kOBCIEmitterBLED112RspGapConnectDirect = 'bleRspGapConnectDirect';
 const bleEvtAttclientFindInformationFound = Buffer.from([0x80, 0x06, 0x04, 0x04]);
 const bleEvtAttclientGroupFound = Buffer.from([0x80, 0x08, 0x04, 0x02]);
 const bleEvtAttclientProcedureCompleted = Buffer.from([0x80, 0x05, 0x04, 0x01]);
+const bleEvtAttclientAttributeValue = Buffer.from([0x80, 0x19, 0x04, 0x05]);
 const bleEvtConnectionStatus = Buffer.from([0x80, 0x10, 0x03, 0x00]);
 const bleEvtConnectionDisconnected = Buffer.from([0x80, 0x03, 0x03, 0x04]);
 const bleEvtGapScanResponse = Buffer.from([0x80, 0x1A, 0x06, 0x00]);
@@ -961,6 +971,15 @@ Ganglion.prototype._bled112Init = function (portName) {
 };
 
 /**
+ * @typedef {Object} BLED112AttributeValue
+ * @property {Number} characteristicHandle
+ * @property {Buffer} characteristicHandleRaw - The string of the advertisement data, not the full ad data
+ * @property {Number} connection - The connection the info is from
+ * @property {Number} type - The type, where 0x01 is data?
+ * @property {Buffer} value - The value from device
+ */
+
+/**
  * @typedef {Object} BLED112AttributeWrite
  * @property {Buffer} characteristicHandleRaw - Buffer of length 2 for the service number in the att database
  * @property {Number} connection - Which connection is being used
@@ -1019,7 +1038,7 @@ Ganglion.prototype._bled112Init = function (portName) {
  * @property verify {Object}
  * @property verify.position {Number} - The position of the verification byte
  * @property verify.value {Number} - The value of the verification byte
- * @property word {Buffer | Buffer2} - The head byte to search for
+ * @property word {Buffer | Buffer2} - The 4 byte word to search for
  */
 
 /**
@@ -1039,6 +1058,23 @@ Ganglion.prototype._bled112Init = function (portName) {
  * @property {Number} connection
  * @property {Buffer} result
  */
+
+
+/**
+ * Parse the value and get other information
+ * @param data
+ * @returns {BLED112AttributeValue}
+ * @private
+ */
+Ganglion.prototype._bled112AttributeValue = function (data) {
+  return {
+    characteristicHandle: data[6] | data[5],
+    characteristicHandleRaw: Buffer.from([data[6], data[5]]),
+    connection: data[4],
+    type: data[7],
+    value: data.slice(9)
+  };
+};
 
 /**
  * Connect to a BLE device
