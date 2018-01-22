@@ -63,14 +63,77 @@ describe('#ganglion', function () {
 
   });
   describe('#_bled112AttributeValue', function () {
-    it('should be able to get the connection, atthandle type and value', function () {
+    it('should be able to get the connection, atthandle type and value for data', function () {
       const rawBuf = Buffer.from([0x80, 0x19, 0x04, 0x05, 0x00, 0x19, 0x00, 0x01, 0x14, 0x6A, 0x00, 0x97, 0xC0, 0x2A, 0x30, 0x01, 0x38, 0x01, 0x59, 0x60, 0x17, 0x64, 0x03, 0x83, 0x00, 0x78, 0x30, 0x02, 0xB2]);
 
       const expectedConnection = 0;
       const expectedCharacteristicHandle = 25;
       const expectedCharacteristicHandleRaw = Buffer.from([0x00, 0x19]);
       const expectedType = 1;
-      const expectedValue = Buffer.from([0x6A, 0x00, 0x97, 0xC0, 0x2A, 0x30, 0x01, 0x38, 0x01, 0x59, 0x60, 0x17, 0x64, 0x03, 0x83, 0x00, 0x78, 0x30, 0x02, 0xB2]);;
+      const expectedValue = Buffer.from([0x6A, 0x00, 0x97, 0xC0, 0x2A, 0x30, 0x01, 0x38, 0x01, 0x59, 0x60, 0x17, 0x64, 0x03, 0x83, 0x00, 0x78, 0x30, 0x02, 0xB2]);
+
+      const expectedOutput = {
+        characteristicHandle: expectedCharacteristicHandle,
+        characteristicHandleRaw: expectedCharacteristicHandleRaw,
+        connection: expectedConnection,
+        type: expectedType,
+        value: expectedValue
+      };
+
+      const actualOutput = ganglion._bled112AttributeValue(rawBuf);
+
+      expect(actualOutput).to.deep.equal(expectedOutput);
+    });
+    it('should be able to get the connection, atthandle type and value for impedance', function () {
+      const rawBuf = Buffer.from([0x80, 0x0B, 0x04, 0x05, 0x00, 0x19, 0x00, 0x01, 0x06, 0xCA, 0x31, 0x32, 0x30, 0x37, 0x5A]);
+
+      const expectedConnection = 0;
+      const expectedCharacteristicHandle = 25;
+      const expectedCharacteristicHandleRaw = Buffer.from([0x00, 0x19]);
+      const expectedType = 1;
+      const expectedValue = Buffer.from([0xCA, 0x31, 0x32, 0x30, 0x37, 0x5A]);
+
+      const expectedOutput = {
+        characteristicHandle: expectedCharacteristicHandle,
+        characteristicHandleRaw: expectedCharacteristicHandleRaw,
+        connection: expectedConnection,
+        type: expectedType,
+        value: expectedValue
+      };
+
+      const actualOutput = ganglion._bled112AttributeValue(rawBuf);
+
+      expect(actualOutput).to.deep.equal(expectedOutput);
+    });
+    it('should be able to get the connection, atthandle type and value multi packet message', function () {
+      const rawBuf = Buffer.from([0x80, 0x19, 0x04, 0x05, 0x00, 0x19, 0x00, 0x01, 0x14, 0xce, 0x44, 0x65, 0x61, 0x63, 0x74, 0x69, 0x76, 0x61, 0x74, 0x69, 0x6E, 0x67, 0x20, 0x63, 0x68, 0x61, 0x6E, 0x6E, 0x65]);
+
+      const expectedConnection = 0;
+      const expectedCharacteristicHandle = 25;
+      const expectedCharacteristicHandleRaw = Buffer.from([0x00, 0x19]);
+      const expectedType = 1;
+      const expectedValue = Buffer.from([0xCE, 0x44, 0x65, 0x61, 0x63, 0x74, 0x69, 0x76, 0x61, 0x74, 0x69, 0x6E, 0x67, 0x20, 0x63, 0x68, 0x61, 0x6E, 0x6E, 0x65]);
+
+      const expectedOutput = {
+        characteristicHandle: expectedCharacteristicHandle,
+        characteristicHandleRaw: expectedCharacteristicHandleRaw,
+        connection: expectedConnection,
+        type: expectedType,
+        value: expectedValue
+      };
+
+      const actualOutput = ganglion._bled112AttributeValue(rawBuf);
+
+      expect(actualOutput).to.deep.equal(expectedOutput);
+    });
+    it('should be able to get the connection, atthandle type and value for multi packet message end', function () {
+      const rawBuf = Buffer.from([0x80, 0x0A, 0x04, 0x05, 0x00, 0x19, 0x00, 0x01, 0x05, 0xCF, 0x6C, 0x20, 0x32, 0x0A]);
+
+      const expectedConnection = 0;
+      const expectedCharacteristicHandle = 25;
+      const expectedCharacteristicHandleRaw = Buffer.from([0x00, 0x19]);
+      const expectedType = 1;
+      const expectedValue = Buffer.from([0xCF, 0x6C, 0x20, 0x32, 0x0A]);
 
       const expectedOutput = {
         characteristicHandle: expectedCharacteristicHandle,
@@ -583,6 +646,46 @@ describe('#ganglion', function () {
     });
   });
   describe('#_bled112ParseForRaws', function () {
+    it('should be able to extract attribute values when only thing in input data', function () {
+      let expectedScanResponse = Buffer.from([0x80, 0x0A, 0x04, 0x05, 0x00, 0x19, 0x00, 0x01, 0x05, 0xCF, 0x6C, 0x20, 0x32, 0x0A]);
+
+      let inputObj = ganglion._bled112GetParsingAttributeValue(expectedScanResponse);
+      let actualOutput = ganglion._bled112ParseForRaws(inputObj);
+
+      expect(actualOutput.raws[0]).to.deep.equal(expectedScanResponse);
+      expect(actualOutput.raws.length).to.equal(1);
+      expect(actualOutput.buffer).to.equal(null);
+
+      // Another one
+      expectedScanResponse = Buffer.from([0x80, 0x19, 0x04, 0x05, 0x00, 0x19, 0x00, 0x01, 0x14, 0xce, 0x44, 0x65, 0x61, 0x63, 0x74, 0x69, 0x76, 0x61, 0x74, 0x69, 0x6E, 0x67, 0x20, 0x63, 0x68, 0x61, 0x6E, 0x6E, 0x65]);
+
+      inputObj = ganglion._bled112GetParsingAttributeValue(expectedScanResponse);
+      actualOutput = ganglion._bled112ParseForRaws(inputObj);
+
+      expect(actualOutput.raws[0]).to.deep.equal(expectedScanResponse);
+      expect(actualOutput.raws.length).to.equal(1);
+      expect(actualOutput.buffer).to.equal(null);
+
+      // And another one
+      expectedScanResponse = Buffer.from([0x80, 0x0B, 0x04, 0x05, 0x00, 0x19, 0x00, 0x01, 0x06, 0xCA, 0x31, 0x32, 0x30, 0x37, 0x5A]);
+
+      inputObj = ganglion._bled112GetParsingAttributeValue(expectedScanResponse);
+      actualOutput = ganglion._bled112ParseForRaws(inputObj);
+
+      expect(actualOutput.raws[0]).to.deep.equal(expectedScanResponse);
+      expect(actualOutput.raws.length).to.equal(1);
+      expect(actualOutput.buffer).to.equal(null);
+
+      // And another one
+      expectedScanResponse = Buffer.from([0x80, 0x19, 0x04, 0x05, 0x00, 0x19, 0x00, 0x01, 0x14, 0x6A, 0x00, 0x97, 0xC0, 0x2A, 0x30, 0x01, 0x38, 0x01, 0x59, 0x60, 0x17, 0x64, 0x03, 0x83, 0x00, 0x78, 0x30, 0x02, 0xB2]);
+
+      inputObj = ganglion._bled112GetParsingAttributeValue(expectedScanResponse);
+      actualOutput = ganglion._bled112ParseForRaws(inputObj);
+
+      expect(actualOutput.raws[0]).to.deep.equal(expectedScanResponse);
+      expect(actualOutput.raws.length).to.equal(1);
+      expect(actualOutput.buffer).to.equal(null);
+    });
     it('should be able to extract scan response when only thing in input data', function () {
       const expectedScanResponse = Buffer.from([0x80, 0x1A, 0x06, 0x00, 0xCD, 0x00, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0xFF, 0x0F, 0x0E, 0x09, 0x47, 0x61, 0x6E, 0x67, 0x6C, 0x69, 0x6F, 0x6E, 0x2D, 0x35, 0x34, 0x63, 0x61]);
 

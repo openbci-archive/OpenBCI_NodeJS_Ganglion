@@ -133,10 +133,12 @@ function Ganglion (options, callback) {
   this._bled112ParsingMode = kOBCIBLED112ParsingNormal;
   this._bled112ParsingAttributeValue = {
     buffer: Buffer.from([]),
-    length: 24,
+    ignore: 1,
+    length: 0,
     verify: {
-      position: 8,
-      value: 0x14
+      position: 1,
+      comparePosition: 7,
+      difference: 5
     },
     word: bleEvtAttclientAttributeValue
   };
@@ -903,7 +905,7 @@ const kOBCIEmitterBLED112RspGapConnectDirect = 'bleRspGapConnectDirect';
 const bleEvtAttclientFindInformationFound = Buffer.from([0x80, 0x06, 0x04, 0x04]);
 const bleEvtAttclientGroupFound = Buffer.from([0x80, 0x08, 0x04, 0x02]);
 const bleEvtAttclientProcedureCompleted = Buffer.from([0x80, 0x05, 0x04, 0x01]);
-const bleEvtAttclientAttributeValue = Buffer.from([0x80, 0x19, 0x04, 0x05]);
+const bleEvtAttclientAttributeValue = Buffer.from([0x80, 0x05, 0x04, 0x05]);
 const bleEvtConnectionStatus = Buffer.from([0x80, 0x10, 0x03, 0x00]);
 const bleEvtConnectionDisconnected = Buffer.from([0x80, 0x03, 0x03, 0x04]);
 const bleEvtGapScanResponse = Buffer.from([0x80, 0x1A, 0x06, 0x00]);
@@ -1021,6 +1023,19 @@ Ganglion.prototype._bled112Init = function (portName) {
  * @property {number} start
  * @property {Buffer} startRaw
  * @property {Buffer} uuid
+ */
+
+/**
+ * @typedef {Object} BLED112ParseRawAttributeValue
+ * @property buffer {Buffer | Buffer2} - The raw data buffer to parse
+ * @property ignore {Number} - The position to ignore in the `word`
+ * @property length {Number} - The length of raw you want to extract
+ * @property verify {Object}
+ * @property verify.comparePosition {Number} - The value to compare with `position`
+ * @property verify.difference {Number} - The difference between `position` and `comparePostion`
+ * @property verify.ignore {Number} - The difference between `position` and `comparePostion`
+ * @property verify.position {Number} - The position of the verification byte
+ * @property word {Buffer | Buffer2} - The 4 byte word to search for, ignore byte in postion 1
  */
 
 /**
@@ -1327,6 +1342,17 @@ Ganglion.prototype._bled112GetDiscover = function () {
  */
 Ganglion.prototype._bled112GetFindInformation = function (groupService) {
   return Buffer.from([0x00, 0x05, 0x04, 0x03, groupService.connection, groupService.startRaw[1], groupService.startRaw[0], groupService.endRaw[1], groupService.endRaw[0]]);
+};
+
+/**
+ * Get the parsing object for raw attribute values
+ * @param newBuffer {Buffer | Buffer2} - New buffer to set to object
+ * @return {BLED112ParseRawAttributeValue}
+ * @private
+ */
+Ganglion.prototype._bled112GetParsingAttributeValue = function (newBuffer) {
+  if (newBuffer) this._bled112ParsingAttributeValue.buffer = newBuffer;
+  return this._bled112ParsingAttributeValue;
 };
 
 /**
