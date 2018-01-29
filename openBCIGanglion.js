@@ -135,9 +135,10 @@ function Ganglion (options, callback) {
     buffer: Buffer.from([]),
     ignore: 1,
     length: 0,
+    lengthPosition: 8,
     verify: {
       position: 1,
-      comparePosition: 7,
+      comparePosition: 8,
       difference: 5
     },
     word: bleEvtAttclientAttributeValue
@@ -1030,6 +1031,7 @@ Ganglion.prototype._bled112Init = function (portName) {
  * @property buffer {Buffer | Buffer2} - The raw data buffer to parse
  * @property ignore {Number} - The position to ignore in the `word`
  * @property length {Number} - The length of raw you want to extract
+ * @property lengthPosition {Number} - The position of the byte that stores the length of the value
  * @property verify {Object}
  * @property verify.comparePosition {Number} - The value to compare with `position`
  * @property verify.difference {Number} - The difference between `position` and `comparePostion`
@@ -1590,7 +1592,7 @@ Ganglion.prototype._bled112ProcessBytes = function (data) {
 
 /**
  *
- * @param o {BLED112ParseRawHeadTail | BLED112ParseRawWord} - The options for the parse
+ * @param o {BLED112ParseRawHeadTail | BLED112ParseRawWord | BLED112ParseRawAttributeValue} - The options for the parse
  * @return {{buffer: *, raws: Array}}
  * @private
  */
@@ -1623,6 +1625,23 @@ Ganglion.prototype._bled112ParseForRaws = function (o) {
           rawFound = true;
         }
       }
+    } else if (o.hasOwnProperty('ignore')) {
+      const testBuffer = Buffer.from([0x80, 0xFF, 0x04, 0x05]);
+      let tempValue = o.buffer[o.verify.position];
+      o.buffer[o.verify.position] = 0xFF;
+      const currentBuffer = o.buffer.slice(parsePosition, parsePosition + testBuffer.byteLength);
+      currentBuffer[1] = 0xFF;
+      if (Buffer.compare(o.buffer.slice(parsePosition, parsePosition + testBuffer.byteLength), testBuffer) === 0) {
+        o.buffer[o.verify.position] = tempValue;
+        if ((o.buffer[o.verify.position] - o.verify.difference) === o.buffer[o.verify.comparePosition]) {
+          const newLength = o.buffer[o.lengthPosition] + o.lengthPosition + 1;
+          if (parsePosition <= bytesToParse - newLength) {
+            o.length = newLength;
+            rawFound = true;
+          }
+        }
+      }
+
     } else {
       // is the current front equal to the word
       if (bufferEqual(o.word, Buffer.from(o.buffer.slice(parsePosition, parsePosition + o.word.byteLength)))) {
@@ -1655,6 +1674,9 @@ Ganglion.prototype._bled112ParseForRaws = function (o) {
       // Move the parse position up one packet
       parsePosition = -1;
       bytesToParse -= o.length;
+      if (o.hasOwnProperty('ignore')) {
+        o.length = 10;
+      }
     }
     parsePosition++;
   }
