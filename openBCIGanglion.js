@@ -294,8 +294,8 @@ Ganglion.prototype.connect = function (id) {
         .catch(reject);
     } else if (_.isObject(id)) {
       let func;
-      if (this.options.bled112) func = this._bled112Connect;
-      else func = this._nobleConnect;
+      if (this.options.bled112) func = this._bled112Connect.bind(this);
+      else func = this._nobleConnect.bind(this);
       func(id)
         .then(resolve)
         .catch(reject);
@@ -466,11 +466,23 @@ Ganglion.prototype.searchStart = function (maxSearchTime) {
 
   return new Promise((resolve, reject) => {
     this._searchTimeout = setTimeout(() => {
-      this._nobleScanStop().catch(reject);
+      let searchStopFunc;
+
+      if (this.options.bled112) {
+        searchStopFunc = this._bled112ScanStop;
+      } else {
+        searchStopFunc = this._nobleScanStop;
+      }
+      searchStopFunc.catch(reject);
       reject('Timeout: Unable to find Ganglion');
     }, searchTime);
-
-    this._nobleScanStart()
+    let searchStartFunc;
+    if (this.options.bled112) {
+      searchStartFunc = this._bled112ScanStart;
+    } else {
+      searchStartFunc = this._nobleScanStart;
+    }
+    searchStartFunc()
       .then(() => {
         resolve();
       })
@@ -488,7 +500,11 @@ Ganglion.prototype.searchStart = function (maxSearchTime) {
  * @return {global.Promise|Promise}
  */
 Ganglion.prototype.searchStop = function () {
-  return this._nobleScanStop();
+  if (this.options.bled112) {
+    return this._bled112ScanStop();
+  } else {
+    return this._nobleScanStop();
+  }
 };
 
 /**
@@ -1171,8 +1187,7 @@ Ganglion.prototype._bled112Connect = function (p) {
       this.serial.write(this._bled112GetReadByGroupType(newConnection)).catch(reject);
     });
     // Connect to peripheral with mac address
-    this.serial.write(this._bled112GetConnectDirect(p))
-      .catch(reject);
+    this.serial.write(this._bled112GetConnectDirect(p));
   });
 };
 
@@ -1818,7 +1833,7 @@ Ganglion.prototype._bled112ScanStart = function () {
     if (this.isSearching()) return reject(k.OBCIErrorNobleAlreadyScanning);
 
     this.peripheralArray = [];
-
+    this._scanning = true;
     this._bled112WriteAndDrain(this._bled112GetDiscover())
       .then(() => {
         this._bled112ParseForDiscover();
@@ -1838,7 +1853,7 @@ Ganglion.prototype._bled112ScanStart = function () {
 Ganglion.prototype._bled112ScanStop = function () {
   if (!this.isSearching()) return Promise.reject(k.OBCIErrorNobleNotAlreadyScanning);
   if (this.options.verbose) console.log(`Stopping scan`);
-
+  this._scanning = false;
   return this._bled112WriteAndDrain(new Buffer([0x00, 0x00, 0x06, 0x04]));
 };
 

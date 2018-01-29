@@ -24,7 +24,6 @@ const impedance = false;
 const accel = false;
 
 ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
-  ganglion.searchStop().catch(errorFunc);
 
   ganglion.on('sample', (sample) => {
     /** Work with sample */
@@ -72,8 +71,11 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
     ganglion.streamStart().catch(errorFunc);
     console.log('ready');
   });
+  ganglion.searchStop()
+    .then(() => {
+      return ganglion.connect(peripheral);
+    }).catch(errorFunc);
 
-  ganglion.connect(peripheral).catch(errorFunc);
 });
 
 function exitHandler (options, err) {
