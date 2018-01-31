@@ -71,6 +71,13 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
       // }
     // ganglion.streamStart().catch(errorFunc);
     console.log('ready');
+    ganglion.disconnect(false)
+      .then(() => {
+        console.log('disconnected');
+      })
+      .catch((err) => {
+        console.log(err);
+      })
   });
   ganglion.searchStop()
     .then(() => {

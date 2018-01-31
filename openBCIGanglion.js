@@ -145,6 +145,11 @@ function Ganglion (options, callback) {
     },
     word: bleEvtAttclientAttributeValue
   };
+  this._bled112ParsingAttributeWrite = {
+    buffer: Buffer.from([]),
+    length: 7,
+    word: bleRspAttclientAttributeWrite
+  };
   this._bled112ParsingConnectionStatus = {
     buffer: Buffer.from([]),
     length: 20,
@@ -567,7 +572,9 @@ Ganglion.prototype.softReset = function () {
 Ganglion.prototype.streamStart = function () {
   return new Promise((resolve, reject) => {
     if (this.isStreaming()) return reject('Error [.streamStart()]: Already streaming');
-    this._streaming = true;
+    this.once('sample', () => {
+      this._streaming = true;
+    });
     this.write(k.OBCIStreamStart)
       .then(() => {
         if (this.options.verbose) console.log('Sent stream start to board.');
@@ -657,6 +664,7 @@ Ganglion.prototype.write = function (data) {
           reject(Error('Unable to write to BLED112 attribute', res.result[0] | res.result[1]));
         }
       });
+      this._bled112ParseForNormal();
       this._bled112WriteAndDrain(this._bled112GetAttributeWrite({
         characteristicHandleRaw: this._bled112WriteCharacteristic.characteristicHandleRaw,
         connection: this._bled112WriteCharacteristic.connection,
@@ -977,7 +985,7 @@ const bleRspGapDiscover = Buffer.from([0x00, 0x02, 0x06, 0x02]);
 const bleRspGapDisconnect = Buffer.from([0x00, 0x03, 0x03, 0x00]);
 
 const ganglionUUIDCCC = Buffer.from([0x29, 0x02]);
-const ganglionUUIDCharacteristic = Buffer.from([0x2D, 0x30, 0xC0, 0x82, 0xF3, 0x9F, 0x4C, 0xE6, 0x92, 0x3F, 0x34, 0x84, 0xEA, 0x48, 0x05, 0x96]);
+const ganglionUUIDCharacteristic = Buffer.from([0x2D, 0x30, 0xC0, 0x83, 0xF3, 0x9F, 0x4C, 0xE6, 0x92, 0x3F, 0x34, 0x84, 0xEA, 0x48, 0x05, 0x96]);
 const ganglionUUIDService = Buffer.from([0xFE, 0x84]);
 
 /** Used in parsing incoming serial data */
@@ -1180,6 +1188,52 @@ Ganglion.prototype._bled112Connect = function (p) {
     const writeNotifyAttribute = (res) => {
       if (bufferEqual(res.result, bleResultNoError)) {
         if (this.options.verbose) console.log(`_bled112Connect: Success wrote attribute to CCC`);
+        // const attemptWriteFunction = (infos) => {
+        //   this._bled112WriteCharacteristic = infos.shift();
+        //   if (this.options.verbose) console.log('attempting write on ', JSON.stringify(this._bled112WriteCharacteristic));
+        //   const sampleFoundFunc = (sample) => {
+        //     if (verbose) console.log('got a sample see ', JSON.stringify(sample));
+        //     clearTimeout(timeoutFunc);
+        //   };
+        //   const timeoutFunc = setTimeout(() => {
+        //     this.removeListener('sample', sampleFoundFunc);
+        //     attemptWriteFunction(infos);
+        //   }, 500);
+        //   this.once('sample', sampleFoundFunc);
+        //   this.write(k.OBCIStreamStart)
+        //     .then(() => {
+        //       if (this.options.verbose) console.log('Sent stream start to board.');
+        //       resolve();
+        //     })
+        //     .catch(reject);
+        // };
+        let possibleWriteInfos = [];
+        this._bled112Characteristics.forEach((info) => {
+          if (bufferEqual(ganglionUUIDCharacteristic, info.uuid)) {
+            if (this.options.verbose) console.log('Victory! Write characteristic set!');
+            this._bled112ParseForNormal();
+            this._bled112WriteCharacteristic = info;
+            this.emit('ready');
+            resolve();
+
+            // this._bled112ParseForNormal();
+              // resolve();
+          }
+        });
+
+        // attemptWriteFunction(possibleWriteInfos);
+        // if (possibleWriteInfos.length === 2) {
+        //   if (possibleWriteInfos[0].characteristicHandle < possibleWriteInfos[1].characteristicHandle) {
+        //     this._bled112WriteCharacteristic = possibleWriteInfos[1];
+        //   } else {
+        //     this._bled112WriteCharacteristic = possibleWriteInfos[0];
+        //   }
+        //   if (this.options.verbose) console.log('Write characteristic set to', JSON.stringify(this._bled112WriteCharacteristic));
+        //   resolve();
+        if (this._bled112WriteCharacteristic === null) {
+          throw Error('unable to find write characteristic');
+        }
+
       } else {
         if (this.options.verbose) console.log(`_bled112Connect: Failed to write attribute to CCC`);
       }
@@ -1188,39 +1242,50 @@ Ganglion.prototype._bled112Connect = function (p) {
     let endFindInformationFoundTimeout = null;
     const endFindInformationFound = () => {
       this.removeListener(kOBCIEmitterBLED112EvtAttclientFindInformationFound, findInformationFound);
-      if (this.options.verbose) console.log('_bled112Connect: Find information found complete.');
+      if (this.options.verbose) console.log('Find information found complete.');
+      if (this._bled112GanglionUUIDCCC) {
+        this._bled112ParseForProcedureComplete();
+        this.once(kOBCIEmitterBLED112EvtAttclientProcedureCompleted, writeNotifyAttribute);
+        this._bled112WriteAndDrain(this._bled112GetAttributeWrite({
+          characteristicHandleRaw: this._bled112GanglionUUIDCCC.characteristicHandleRaw,
+          connection: this._bled112Connection,
+          value: Buffer.from([0x01, 0x00])
+        })).catch((err) => {
+          if (this.options.verbose) console.log(err);
+        });
+      } else {
+        throw Error('Ganglion uuid ccc is not set')
+      }
     };
+
     /**
      * Called when information if found
      * @param information {BLED112FindInformationFound}
      */
     const findInformationFound = (information) => {
       if (this.options.verbose) console.log('Find information found', JSON.stringify(information));
+      let newHandles = [];
+      this._bled112Characteristics.forEach(
+        /**
+         *
+         * @param info {BLED112FindInformationFound}
+         */
+        (info) => {
+          if (info.characteristicHandle !== information.characteristicHandle) {
+            newHandles.push(info);
+          }
+        });
+      newHandles.push(information);
+      this._bled112Characteristics = newHandles;
       if (bufferEqual(ganglionUUIDCCC, information.uuid)) {
+        this._bled112GanglionUUIDCCC = information;
         if (this.options.verbose) console.log(`ganglionUUIDCCC characteristic found: ${JSON.stringify(information)}`);
-        this.once(kOBCIEmitterBLED112EvtAttclientProcedureCompleted, writeNotifyAttribute);
-        this.serial.write(this._bled112GetAttributeWrite({
-          characteristicHandleRaw: information.characteristicHandleRaw,
-          connection: information.connection,
-          value: Buffer.from([0x01, 0x00])
-        }));
-        this._bled112Connection = information.connection;
-      } else if (bufferEqual(ganglionUUIDCharacteristic, information.uuid)) {
-        handles.push(information);
-        if (handles.length === 2) {
-          if (this.options.verbose) console.log(`ganglionUUIDCharacteristic: write characteristic found: ${JSON.stringify(information)}`);
-          this._bled112WriteCharacteristic = information;
-          this._bled112ParseForNormal();
-          resolve();
-        } else {
-          if (this.options.verbose) console.log(`_bled112Connect: not write characteristic`);
-        }
       }
       if (endFindInformationFoundTimeout) {
         clearTimeout(endFindInformationFoundTimeout);
       }
       endFindInformationFoundTimeout = setTimeout(endFindInformationFound, 500); // End find information found  after no new characteristics
-      this._bled112Characteristics.push(information);
+      // this._bled112Characteristics.push(information);
     };
     const groupFound = (group) => {
       if (bufferEqual(ganglionUUIDService, group.uuid)) {
@@ -1474,6 +1539,17 @@ Ganglion.prototype._bled112GetParsingAttributeValue = function (newBuffer) {
 };
 
 /**
+ * Get the parsing object for attribute writes
+ * @param newBuffer {Buffer | Buffer2} - New buffer to set to object
+ * @return {BLED112ParseRawAttributeValue}
+ * @private
+ */
+Ganglion.prototype._bled112GetParsingAttributeWrite = function (newBuffer) {
+  if (newBuffer) this._bled112ParsingAttributeWrite.buffer = newBuffer;
+  return this._bled112ParsingAttributeWrite;
+};
+
+/**
  * Get the parsing object for connect direct status event
  * @param newBuffer {Buffer | Buffer2} - New buffer to set to object
  * @return {BLED112ParseRawAttributeValue}
@@ -1599,6 +1675,7 @@ Ganglion.prototype._bled112ParseForGroup = function () {
 };
 
 Ganglion.prototype._bled112ParseForNormal = function () {
+  if (this.options.verbose) console.log('Parsing for normal');
   this._bled112ParsingMode = kOBCIBLED112ParsingNormal;
 };
 
@@ -1720,7 +1797,9 @@ Ganglion.prototype._bled112ProcessRaw = function (data) {
       return newGroup;
     } else if (bufferEqual(data.slice(0, bleEvtAttclientProcedureCompleted.byteLength), bleEvtAttclientProcedureCompleted)) {
       if (this.options.verbose) console.log('BLED112EvtAttclientProcedureCompleted');
-      this.emit(kOBCIEmitterBLED112EvtAttclientProcedureCompleted);
+      this.emit(kOBCIEmitterBLED112EvtAttclientProcedureCompleted, {
+        result: Buffer.from([data[6], data[5]])
+      });
       return data;
     }
   }
@@ -1776,12 +1855,15 @@ Ganglion.prototype._bled112ProcessBytes = function (data) {
       break;
     case kOBCIBLED112ParsingFindInfo:
       out = this._bled112ParseForRaws(this._bled112GetParsingFindInfoShort(data));
-      tempOut = this._bled112ParseForRaws(this._bled112GetParsingFindInfoLong(data));
+      tempOut = this._bled112ParseForRaws(this._bled112GetParsingFindInfoLong(out.buffer));
       tempOut.raws.forEach((raw) => out.raws.push(raw));
       out.buffer = tempOut.buffer;
       break;
     case kOBCIBLED112ParsingNormal:
       out = this._bled112ParseForRaws(this._bled112GetParsingAttributeValue(data));
+      tempOut = this._bled112ParseForRaws(this._bled112GetParsingAttributeWrite(out.buffer));
+      tempOut.raws.forEach((raw) => out.raws.push(raw));
+      out.buffer = tempOut.buffer;
       break;
     case kOBCIBLED112ParsingProcedureComplete:
       out = this._bled112ParseForRaws(this._bled112GetParsingProcedureComplete(data));
