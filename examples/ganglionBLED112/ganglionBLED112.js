@@ -4,6 +4,7 @@ const verbose = true;
 let ganglion = new Ganglion({
   bled112: true,
   debug: true,
+  nobleScanOnPowerOn: true,
   sendCounts: true,
   verbose: verbose
 }, (error) => {
@@ -68,7 +69,7 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
       // } else {
       //
       // }
-    ganglion.streamStart().catch(errorFunc);
+    // ganglion.streamStart().catch(errorFunc);
     console.log('ready');
   });
   ganglion.searchStop()
@@ -83,7 +84,7 @@ function exitHandler (options, err) {
     if (verbose) console.log('clean');
     // console.log(connectedPeripheral)
     ganglion.manualDisconnect = true;
-    ganglion.disconnect();
+    // ganglion.disconnect();
     ganglion.removeAllListeners('droppedPacket');
     ganglion.removeAllListeners('accelerometer');
     ganglion.removeAllListeners('sample');
@@ -101,15 +102,22 @@ function exitHandler (options, err) {
     if (impedance) {
       ganglion.impedanceStop().catch(console.log);
     }
-    if (ganglion.isSearching()) {
-      ganglion.searchStop().catch(console.log);
-    }
+
     if (accel) {
       ganglion.accelStop().catch(console.log);
     }
-    ganglion.manualDisconnect = true;
-    ganglion.disconnect(true).catch(console.log);
-    process.exit(0);
+
+    if (ganglion.isSearching()) {
+      ganglion.searchStop()
+        .catch((err) => {
+          console.log(err);
+          process.exit(0);
+        });
+    } else {
+      ganglion.manualDisconnect = true;
+      ganglion.disconnect(false).catch(console.log);
+      process.exit(0);
+    }
   }
 }
 
