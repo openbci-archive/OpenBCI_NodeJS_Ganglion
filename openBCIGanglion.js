@@ -369,6 +369,7 @@ Ganglion.prototype.disconnect = function (stopStreaming) {
       return new Promise((resolve, reject) => {
         // serial emitting 'close' will call _disconnected
         if (this._bled112Connection >= 0) {
+          if (this.options.verbose) console.log('Calling disconnect on bled112');
           let disconnectTimeout = null;
           this.once(kOBCIEmitterBLED112RspGapDisconnect, () => {
             if (this.options.verbose) console.log('Disconnected as clean as possible');
