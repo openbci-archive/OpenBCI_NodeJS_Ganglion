@@ -579,6 +579,7 @@ Ganglion.prototype.streamStart = function () {
     this.write(k.OBCIStreamStart)
       .then(() => {
         if (this.options.verbose) console.log('Sent stream start to board.');
+        if (this.options.bled112) this._bled112ParseForNormal();
         resolve();
       })
       .catch(reject);
@@ -936,6 +937,7 @@ Ganglion.prototype._processBytes = function (data) {
       if (this.options.verbose) console.log('Ganglion.prototype._processBytes: Invalid return object', obj);
     }
   }
+  return obj;
 };
 
 Ganglion.prototype._droppedPacket = function (droppedPacketNumber) {
@@ -1012,7 +1014,8 @@ Ganglion.prototype._bled112Init = function (portName) {
     this.portName = portName || '/dev/tty.usbmodem1';
     if (this.options.verbose) console.log('_bled112Init: using real board ' + this.portName);
     this.serial = new SerialPort(this.portName, {
-      baudRate: 256000
+      baudRate: 256000,
+      pollTime: 20,
     }, (err) => {
       if (err) reject(err);
     });
@@ -1802,6 +1805,10 @@ Ganglion.prototype._bled112ProcessRaw = function (data) {
         result: Buffer.from([data[6], data[5]])
       });
       return data;
+    } else if (bleEvtAttclientAttributeValue[0] === 0x80 && bleEvtAttclientAttributeValue[2] === 0x04 && bleEvtAttclientAttributeValue[3] === 0x05) {
+      const newAttributeValue = this._bled112AttributeValue(data);
+      // if (this.options.verbose) console.log(`BLED112EvtAttributeValue: ${JSON.stringify(newAttributeValue)}`);
+      return this._processBytes(newAttributeValue.value);
     }
   }
   if (this.options.verbose) console.log('Not able to identify the data');
@@ -1925,15 +1932,9 @@ Ganglion.prototype._bled112ParseForRaws = function (o) {
         }
       }
     } else if (o.hasOwnProperty('ignore')) {
-      const testBuffer = Buffer.from([0x80, 0xFF, 0x04, 0x05]);
-      let tempValue = o.buffer[o.verify.position];
-      o.buffer[o.verify.position] = 0xFF;
-      const currentBuffer = o.buffer.slice(parsePosition, parsePosition + testBuffer.byteLength);
-      currentBuffer[1] = 0xFF;
-      if (Buffer.compare(o.buffer.slice(parsePosition, parsePosition + testBuffer.byteLength), testBuffer) === 0) {
-        o.buffer[o.verify.position] = tempValue;
-        if ((o.buffer[o.verify.position] - o.verify.difference) === o.buffer[o.verify.comparePosition]) {
-          const newLength = o.buffer[o.lengthPosition] + o.lengthPosition + 1;
+      if (o.buffer[parsePosition] === 0x80 && o.buffer[parsePosition + 2] === 0x04 && o.buffer[parsePosition + 3] === 0x05) {
+        if ((o.buffer[parsePosition + o.verify.position] - o.verify.difference) === o.buffer[parsePosition + o.verify.comparePosition]) {
+          const newLength = o.buffer[parsePosition + o.lengthPosition] + o.lengthPosition + 1;
           if (parsePosition <= bytesToParse - newLength) {
             o.length = newLength;
             rawFound = true;

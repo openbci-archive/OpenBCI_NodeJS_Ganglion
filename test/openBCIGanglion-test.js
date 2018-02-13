@@ -448,6 +448,19 @@ describe('#ganglion', function () {
         expect(retVal).to.not.equal(null);
       });
     });
+    describe('BLED112RspAttclientAttributeValue', function () {
+      const rawBuf = Buffer.from([0x80, 0x19, 0x04, 0x05, 0x00, 0x19, 0x00, 0x01, 0x14, 0xce, 0x44, 0x65, 0x61, 0x63, 0x74, 0x69, 0x76, 0x61, 0x74, 0x69, 0x6E, 0x67, 0x20, 0x63, 0x68, 0x61, 0x6E, 0x6E, 0x65]);
+      it('emit', function (done) {
+        ganglion.once('sample', () => {
+          done();
+        });
+        ganglion._bled112ProcessRaw(rawBuf);
+      });
+      it('returns', function () {
+        const retVal = ganglion._bled112ProcessRaw(rawBuf);
+        expect(retVal).to.not.equal(null);
+      });
+    });
     describe('BLED112RspAttclientAttributeWrite', function () {
       const rawBuf = Buffer.from([0x00, 0x03, 0x04, 0x05, 0x02, 0x00, 0x00]);
       it('emit', function (done) {
