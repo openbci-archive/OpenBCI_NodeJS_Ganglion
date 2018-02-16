@@ -921,7 +921,7 @@ Ganglion.prototype._nobleScanStop = function () {
  * @private
  */
 Ganglion.prototype._processBytes = function (data) {
-  if (this.options.debug) debug.default('<<', data);
+  if (this.options.debug && !this.options.bled112) debug.default('<<', data);
   this._rawDataPacketToSample.rawDataPacket = data;
   const obj = utilities.parseGanglion(this._rawDataPacketToSample);
   if (obj) {
@@ -1706,7 +1706,7 @@ Ganglion.prototype._bled112GroupFound = function (data) {
 };
 
 Ganglion.prototype._bled112ProcessRaw = function (data) {
-  if (this.options.debug) debug.default('<<', data);
+  // if (this.options.debug) debug.default('<<', data);
   if (data[0] === 0x00) {
     if (data[1] === 0x02) {
       if (bufferEqual(data.slice(0, bleRspGapDiscover.byteLength), bleRspGapDiscover)) {
