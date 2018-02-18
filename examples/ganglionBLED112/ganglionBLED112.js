@@ -3,7 +3,7 @@ const k = require('openbci-utilities/dist/constants');
 const verbose = true;
 let ganglion = new Ganglion({
   bled112: true,
-  debug: true,
+  debug: false,
   nobleScanOnPowerOn: true,
   sendCounts: true,
   verbose: verbose
@@ -23,12 +23,43 @@ function errorFunc (err) {
 
 const impedance = false;
 const accel = false;
+const DO_PACKET_CALCULATIONS = true;
 
 ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
-
+  // UNCOMMENT BELOW FOR DROPPED PACKET CALCULATIONS...
+  let droppedPacketCounter = 0;
+  let buf = [];
+  let sizeOfBuf = 0;
+  let droppedPacketFunc = () => {
+    buf.push(droppedPacketCounter);
+    sizeOfBuf++;
+    droppedPacketCounter = 0;
+    if (sizeOfBuf >= 60) {
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) {
+        sum += parseInt(buf[i], 10);
+      }
+      const percentDropped = sum / 6000 * 100;
+      console.log(`dropped packet rate: ${sum} - percent dropped: %${percentDropped.toFixed(2)}`);
+      buf.shift();
+    } else {
+      console.log(`time till average rate starts ${60 - sizeOfBuf}`);
+    }
+  };
+  let droppedPacketInterval = null;
   ganglion.on('sample', (sample) => {
     /** Work with sample */
-    console.log(sample.sampleNumber);
+    if (sample.valid) {
+      // console.log(sample.sampleNumber);
+      // UNCOMMENT BELOW FOR DROPPED PACKET CALCULATIONS...
+      if (DO_PACKET_CALCULATIONS) {
+        if (droppedPacketInterval === null) {
+          droppedPacketInterval = setInterval(droppedPacketFunc, 1000);
+        }
+      }
+    } else {
+      console.log('err');
+    }
   });
 
   ganglion.on('close', () => {
@@ -36,7 +67,10 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
   });
 
   ganglion.on('droppedPacket', (data) => {
-    console.log('droppedPacket:', data);
+    // console.log('droppedPacket', data);
+    if (DO_PACKET_CALCULATIONS) {
+      droppedPacketCounter++;
+    }
   });
 
   ganglion.on('message', (message) => {

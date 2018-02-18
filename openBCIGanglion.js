@@ -923,6 +923,8 @@ Ganglion.prototype._nobleScanStop = function () {
 Ganglion.prototype._processBytes = function (data) {
   if (this.options.debug && !this.options.bled112) debug.default('<<', data);
   this._rawDataPacketToSample.rawDataPacket = data;
+  this._processProcessSampleData(data);
+  this._packetCounter = parseInt(data[0]);
   const obj = utilities.parseGanglion(this._rawDataPacketToSample);
   if (obj) {
     if (Array.isArray(obj)) {
@@ -941,14 +943,77 @@ Ganglion.prototype._processBytes = function (data) {
 };
 
 Ganglion.prototype._droppedPacket = function (droppedPacketNumber) {
-  this.emit(k.OBCIEmitterDroppedPacket, [droppedPacketNumber]);
   this._droppedPacketCounter++;
+  let droppedPacketArray = [];
+  if (droppedPacketNumber === 0) {
+    droppedPacketArray = [0];
+  } else if (droppedPacketNumber < k.OBCIGanglionByteId18Bit.max) {
+    droppedPacketArray.push(droppedPacketNumber - 1);
+    droppedPacketArray.push(droppedPacketNumber);
+  } else {
+    droppedPacketArray.push((droppedPacketNumber - 100) * 2 - 1);
+    droppedPacketArray.push((droppedPacketNumber - 100) * 2);
+
+  }
+  this.emit(k.OBCIEmitterDroppedPacket, droppedPacketArray);
 };
 
 Ganglion.prototype._resetDroppedPacketSystem = function () {
   this._packetCounter = -1;
   this._firstPacket = true;
   this._droppedPacketCounter = 0;
+};
+
+/**
+ * Checks for dropped packets
+ * @param data {Buffer}
+ * @private
+ */
+Ganglion.prototype._processProcessSampleData = function (data) {
+  const curByteId = parseInt(data[0]);
+  const difByteId = curByteId - this._packetCounter;
+
+  if (this._firstPacket) {
+    this._firstPacket = false;
+    return;
+  }
+
+  // Wrap around situation
+  if (difByteId < 0) {
+    if (this._packetCounter <= k.OBCIGanglionByteId18Bit.max) {
+      if (this._packetCounter === k.OBCIGanglionByteId18Bit.max) {
+        if (curByteId !== k.OBCIGanglionByteIdUncompressed) {
+          this._droppedPacket(curByteId - 1);
+        }
+      } else {
+        let tempCounter = this._packetCounter + 1;
+        while (tempCounter <= k.OBCIGanglionByteId18Bit.max) {
+          this._droppedPacket(tempCounter);
+          tempCounter++;
+        }
+      }
+    } else if (this._packetCounter === k.OBCIGanglionByteId19Bit.max) {
+      if (curByteId !== k.OBCIGanglionByteIdUncompressed) {
+        this._droppedPacket(curByteId - 1);
+      }
+    } else {
+      let tempCounter = this._packetCounter + 1;
+      while (tempCounter <= k.OBCIGanglionByteId19Bit.max) {
+        this._droppedPacket(tempCounter);
+        tempCounter++;
+      }
+    }
+  } else if (difByteId > 1) {
+    if (this._packetCounter === k.OBCIGanglionByteIdUncompressed && curByteId === k.OBCIGanglionByteId19Bit.min) {
+      return;
+    } else {
+      let tempCounter = this._packetCounter + 1;
+      while (tempCounter < curByteId) {
+        this._droppedPacket(tempCounter);
+        tempCounter++;
+      }
+    }
+  }
 };
 
 // ///////////////////////////////////////////////////////////////////////////////////////////
@@ -1490,6 +1555,26 @@ Ganglion.prototype._bled112FindInformationFound = function (data) {
  */
 Ganglion.prototype._bled112GetAttributeWrite = function (p) {
   let outputArray = [0x00, 0x05, 0x04, 0x05, p.connection, p.characteristicHandleRaw[1], p.characteristicHandleRaw[0], p.value.length];
+  if (typeof p.value === 'string') {
+    for (let i = 0; i < p.value.length; i++) {
+      outputArray.push(p.value.charCodeAt(i));
+    }
+  } else {
+    for (let i = 0; i < p.value.length; i++) {
+      outputArray.push(p.value[i]);
+    }
+  }
+  return Buffer.from(outputArray);
+};
+
+/**
+ * Used to get the buffer of the attribute to write
+ * @param p {BLED112AttributeWrite}
+ * @returns {Buffer | Buffer2}
+ * @private
+ */
+Ganglion.prototype._bled112GetAttributeWriteAlt = function (p) {
+  let outputArray = [0x00, 0x06, 0x04, 0x05, p.connection, p.characteristicHandleRaw[1], p.characteristicHandleRaw[0], p.value.length];
   if (typeof p.value === 'string') {
     for (let i = 0; i < p.value.length; i++) {
       outputArray.push(p.value.charCodeAt(i));
