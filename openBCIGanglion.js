@@ -1015,7 +1015,7 @@ Ganglion.prototype._bled112Init = function (portName) {
     if (this.options.verbose) console.log('_bled112Init: using real board ' + this.portName);
     this.serial = new SerialPort(this.portName, {
       baudRate: 256000,
-      pollTime: 20,
+      highWaterMark: 64
     }, (err) => {
       if (err) reject(err);
     });
