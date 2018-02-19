@@ -339,23 +339,21 @@ describe('#ganglion', function () {
   });
   describe('#_bled112GetConnectDirect', function () {
     it('should get the connect direct packet', function () {
-      const expectedOutput = Buffer.from([0x00, 0x0F, 0x06, 0x03, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0x3C, 0x00, 0x4C, 0x00, 0x64, 0x00, 0x00, 0x00]);
+      const expectedOutput = Buffer.from([0x00, 0x0F, 0x06, 0x03, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0x0A, 0x00, 0x4C, 0x00, 0x64, 0x00, 0x00, 0x00]);
 
       const expectedConnection = 1;
-      const expectedFlags = 5;
       const expectedAddressType = 1;
-      const expectedConnectionInterval = 10;
+      const expectedConnectionIntervalMinimum = 10;
+      const expectedConnectionIntervalMaximum = 76;
       const expectedTimeout = 100;
       const expectedLatency = 0;
-      const expectedBonding = 255;
       const expectedSender = Buffer.from([0xE9, 0x53, 0x00, 0xCE, 0x66, 0xD9]);
 
       const bledConnection = {
         addressType: expectedAddressType,
-        bonding: expectedBonding,
         connection: expectedConnection,
-        connectionInterval: expectedConnectionInterval,
-        flags: expectedFlags,
+        connectionIntervalMaximum: expectedConnectionIntervalMaximum,
+        connectionIntervalMinimum: expectedConnectionIntervalMinimum,
         latency: expectedLatency,
         sender: expectedSender,
         timeout: expectedTimeout
@@ -449,7 +447,7 @@ describe('#ganglion', function () {
       });
     });
     describe('BLED112RspAttclientAttributeValue', function () {
-      const rawBuf = Buffer.from([0x80, 0x19, 0x04, 0x05, 0x00, 0x19, 0x00, 0x01, 0x14, 0xce, 0x44, 0x65, 0x61, 0x63, 0x74, 0x69, 0x76, 0x61, 0x74, 0x69, 0x6E, 0x67, 0x20, 0x63, 0x68, 0x61, 0x6E, 0x6E, 0x65]);
+      const rawBuf = Buffer.from([0x80, 0x19, 0x04, 0x05, 0x00, 0x19, 0x00, 0x01, 0x14, 0xae, 0x44, 0x65, 0x61, 0x63, 0x74, 0x69, 0x76, 0x61, 0x74, 0x69, 0x6E, 0x67, 0x20, 0x63, 0x68, 0x61, 0x6E, 0x6E, 0x65]);
       it('emit', function (done) {
         ganglion.once('sample', () => {
           done();
@@ -548,9 +546,9 @@ describe('#ganglion', function () {
     });
     describe('BLED112EvtGapScanResponse', function () {
       const rawBuf = new Buffer([0x80, 0x1A, 0x06, 0x00, 0xCD, 0x00, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0xFF, 0x0F, 0x0E, 0x09, 0x47, 0x61, 0x6E, 0x67, 0x6C, 0x69, 0x6F, 0x6E, 0x2D, 0x35, 0x34, 0x63, 0x61]);
-      const mockPeripheral11 = {'rssi': -50, 'advertisementDataString': 'Ganglion-23ca','sender': Buffer.from([0, 1, 2, 3, 4, 5])};
-      const mockPeripheral12 = {'rssi': -51, 'advertisementDataString': 'Ganglion-23ca','sender': Buffer.from([0, 1, 2, 3, 4, 5])};
-      const mockPeripheral2 = {'rssi': -60, 'advertisementDataString': 'Ganglion-23cb','sender': Buffer.from([6, 7, 8, 9, 10, 11])};
+      const mockPeripheral11 = {'rssi': -50, 'advertisementDataString': 'Ganglion-23ca', 'sender': Buffer.from([0, 1, 2, 3, 4, 5])};
+      const mockPeripheral12 = {'rssi': -51, 'advertisementDataString': 'Ganglion-23ca', 'sender': Buffer.from([0, 1, 2, 3, 4, 5])};
+      const mockPeripheral2 = {'rssi': -60, 'advertisementDataString': 'Ganglion-23cb', 'sender': Buffer.from([6, 7, 8, 9, 10, 11])};
       let funcStub;
       before(() => {
         funcStub = sinon.stub(ganglion, '_bled112DeviceFound');

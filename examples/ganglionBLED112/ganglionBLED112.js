@@ -120,7 +120,6 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
     .then(() => {
       return ganglion.connect(peripheral);
     }).catch(errorFunc);
-
 });
 
 function exitHandler (options, err) {

@@ -386,7 +386,7 @@ Ganglion.prototype.disconnect = function (stopStreaming) {
             .catch((err) => {
               this._disconnected();
               reject(err);
-            })
+            });
         } else if (this._peripheral) {
           this._peripheral.disconnect((err) => {
             if (err) {
@@ -948,12 +948,11 @@ Ganglion.prototype._droppedPacket = function (droppedPacketNumber) {
   if (droppedPacketNumber === 0) {
     droppedPacketArray = [0];
   } else if (droppedPacketNumber < k.OBCIGanglionByteId18Bit.max) {
-    droppedPacketArray.push(droppedPacketNumber - 1);
-    droppedPacketArray.push(droppedPacketNumber);
+    droppedPacketArray.push(droppedPacketNumber * 2 - 1);
+    droppedPacketArray.push(droppedPacketNumber * 2);
   } else {
     droppedPacketArray.push((droppedPacketNumber - 100) * 2 - 1);
     droppedPacketArray.push((droppedPacketNumber - 100) * 2);
-
   }
   this.emit(k.OBCIEmitterDroppedPacket, droppedPacketArray);
 };
@@ -1216,7 +1215,6 @@ Ganglion.prototype._bled112Init = function (portName) {
  * @property {Buffer} result
  */
 
-
 /**
  * Parse the value and get other information
  * @param data
@@ -1276,7 +1274,6 @@ Ganglion.prototype._bled112Connect = function (p) {
         //     })
         //     .catch(reject);
         // };
-        let possibleWriteInfos = [];
         this._bled112Characteristics.forEach((info) => {
           if (bufferEqual(ganglionUUIDCharacteristic, info.uuid)) {
             if (this.options.verbose) console.log('Victory! Write characteristic set!');
@@ -1302,12 +1299,10 @@ Ganglion.prototype._bled112Connect = function (p) {
         if (this._bled112WriteCharacteristic === null) {
           throw Error('unable to find write characteristic');
         }
-
       } else {
         if (this.options.verbose) console.log(`_bled112Connect: Failed to write attribute to CCC`);
       }
     };
-    const handles = [];
     let endFindInformationFoundTimeout = null;
     const endFindInformationFound = () => {
       this.removeListener(kOBCIEmitterBLED112EvtAttclientFindInformationFound, findInformationFound);
@@ -1323,7 +1318,7 @@ Ganglion.prototype._bled112Connect = function (p) {
           if (this.options.verbose) console.log(err);
         });
       } else {
-        throw Error('Ganglion uuid ccc is not set')
+        throw Error('Ganglion uuid ccc is not set');
       }
     };
 
@@ -1483,24 +1478,24 @@ Ganglion.prototype.bled112CleanupEmitters = function () {
 };
 
 Ganglion.prototype._bled112Disconnect = function () {
- return new Promise((resolve, reject) => {
-   if (this._bled112Connection >= 0) {
-     this.once(kOBCIEmitterBLED112RspGapDisconnect, () => {
-       this.serial.close((err) => {
-         if (err) {
-           reject(err);
-         } else {
-           resolve();
-         }
-       });
-     });
-     this._bled112ParsingMode = kOBCIBLED112ParsingDisconnect;
+  return new Promise((resolve, reject) => {
+    if (this._bled112Connection >= 0) {
+      this.once(kOBCIEmitterBLED112RspGapDisconnect, () => {
+        this.serial.close((err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+      });
+      this._bled112ParsingMode = kOBCIBLED112ParsingDisconnect;
 
-     this._bled112WriteAndDrain(this._bled112GetDisconnect(this._bled112Connection)).catch(console.log);
-   } else {
-     reject(Error('No connection made'));
-   }
- });
+      this._bled112WriteAndDrain(this._bled112GetDisconnect(this._bled112Connection)).catch(console.log);
+    } else {
+      reject(Error('No connection made'));
+    }
+  });
 };
 
 /**
@@ -1590,12 +1585,17 @@ Ganglion.prototype._bled112GetAttributeWriteAlt = function (p) {
 /**
  * Get buffer to connect to a device
  * @param p {Object}
+ * @param p.addressType {Number}
+ * @param p.connectionIntervalMaximum {Number}
+ * @param p.connectionIntervalMinimum {Number}
+ * @param p.latency {Number}
  * @param p.sender {Buffer} - 6 byte mac address of device
+ * @param p.timeout {Number}
  * @returns {Buffer | Buffer2}
  * @private
  */
 Ganglion.prototype._bled112GetConnectDirect = function (p) {
-  return Buffer.from([0x00, 0x0F, 0x06, 0x03, p.sender[5], p.sender[4], p.sender[3], p.sender[2], p.sender[1], p.sender[0], p.addressType, 0x0A, 0x00, 0x4C, 0x00, 0x64, 0x00, 0x00, 0x00]);
+  return Buffer.from([0x00, 0x0F, 0x06, 0x03, p.sender[5], p.sender[4], p.sender[3], p.sender[2], p.sender[1], p.sender[0], p.addressType, p.connectionIntervalMinimum & 0x00FF, (p.connectionIntervalMinimum & 0xFF00) >> 8, p.connectionIntervalMaximum & 0x00FF, (p.connectionIntervalMaximum & 0xFF00) >> 8, p.timeout & 0x00FF, (p.timeout & 0xFF00) >> 8, p.latency & 0x00FF, (p.latency & 0xFF00) >> 8]);
 };
 
 Ganglion.prototype._bled112GetDisconnect = function (connection) {
@@ -2026,7 +2026,6 @@ Ganglion.prototype._bled112ParseForRaws = function (o) {
           }
         }
       }
-
     } else {
       // is the current front equal to the word
       if (bufferEqual(o.word, Buffer.from(o.buffer.slice(parsePosition, parsePosition + o.word.byteLength)))) {
