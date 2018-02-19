@@ -2,7 +2,9 @@ const Ganglion = require('../../openBCIGanglion');
 const k = require('openbci-utilities/dist/constants');
 const verbose = true;
 let ganglion = new Ganglion({
-  debug: true,
+  bled112: true,
+  debug: false,
+  nobleScanOnPowerOn: true,
   sendCounts: true,
   verbose: verbose
 }, (error) => {
@@ -21,13 +23,43 @@ function errorFunc (err) {
 
 const impedance = false;
 const accel = false;
+const DO_PACKET_CALCULATIONS = true;
 
 ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
-  ganglion.searchStop().catch(errorFunc);
-
+  // UNCOMMENT BELOW FOR DROPPED PACKET CALCULATIONS...
+  let droppedPacketCounter = 0;
+  let buf = [];
+  let sizeOfBuf = 0;
+  let droppedPacketFunc = () => {
+    buf.push(droppedPacketCounter);
+    sizeOfBuf++;
+    droppedPacketCounter = 0;
+    if (sizeOfBuf >= 60) {
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) {
+        sum += parseInt(buf[i], 10);
+      }
+      const percentDropped = sum / 6000 * 100;
+      console.log(`dropped packet rate: ${sum} - percent dropped: %${percentDropped.toFixed(2)}`);
+      buf.shift();
+    } else {
+      console.log(`time till average rate starts ${60 - sizeOfBuf}`);
+    }
+  };
+  let droppedPacketInterval = null;
   ganglion.on('sample', (sample) => {
     /** Work with sample */
-    console.log(sample.sampleNumber);
+    if (sample.valid) {
+      console.log(sample.sampleNumber);
+      // UNCOMMENT BELOW FOR DROPPED PACKET CALCULATIONS...
+      if (DO_PACKET_CALCULATIONS) {
+        if (droppedPacketInterval === null) {
+          droppedPacketInterval = setInterval(droppedPacketFunc, 1000);
+        }
+      }
+    } else {
+      console.log('err');
+    }
   });
 
   ganglion.on('close', () => {
@@ -35,7 +67,10 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
   });
 
   ganglion.on('droppedPacket', (data) => {
-    console.log('droppedPacket:', data);
+    // console.log('droppedPacket', data);
+    if (DO_PACKET_CALCULATIONS) {
+      droppedPacketCounter++;
+    }
   });
 
   ganglion.on('message', (message) => {
@@ -68,11 +103,23 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
       // } else {
       //
       // }
-    ganglion.streamStart().catch(errorFunc);
     console.log('ready');
+    setTimeout(() => {
+      console.log('start stream');
+      ganglion.streamStart().catch(errorFunc);
+    }, 2000);
+    // ganglion.disconnect(false)
+    //   .then(() => {
+    //     console.log('disconnected');
+    //   })
+    //   .catch((err) => {
+    //     console.log(err);
+    //   })
   });
-
-  ganglion.connect('Ganglion-58f3').catch(errorFunc);
+  ganglion.searchStop()
+    .then(() => {
+      return ganglion.connect(peripheral);
+    }).catch(errorFunc);
 });
 
 function exitHandler (options, err) {
@@ -80,7 +127,7 @@ function exitHandler (options, err) {
     if (verbose) console.log('clean');
     // console.log(connectedPeripheral)
     ganglion.manualDisconnect = true;
-    ganglion.disconnect();
+    // ganglion.disconnect();
     ganglion.removeAllListeners('droppedPacket');
     ganglion.removeAllListeners('accelerometer');
     ganglion.removeAllListeners('sample');
@@ -98,15 +145,22 @@ function exitHandler (options, err) {
     if (impedance) {
       ganglion.impedanceStop().catch(console.log);
     }
-    if (ganglion.isSearching()) {
-      ganglion.searchStop().catch(console.log);
-    }
+
     if (accel) {
       ganglion.accelStop().catch(console.log);
     }
-    ganglion.manualDisconnect = true;
-    ganglion.disconnect(true).catch(console.log);
-    process.exit(0);
+
+    if (ganglion.isSearching()) {
+      ganglion.searchStop()
+        .catch((err) => {
+          console.log(err);
+          process.exit(0);
+        });
+    } else {
+      ganglion.manualDisconnect = true;
+      ganglion.disconnect(false).catch(console.log);
+      process.exit(0);
+    }
   }
 }
 
