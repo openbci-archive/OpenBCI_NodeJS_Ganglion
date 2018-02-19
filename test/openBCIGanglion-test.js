@@ -344,7 +344,7 @@ describe('#ganglion', function () {
       const expectedConnection = 1;
       const expectedFlags = 5;
       const expectedAddressType = 1;
-      const expectedConnectionInterval = 60;
+      const expectedConnectionInterval = 10;
       const expectedTimeout = 100;
       const expectedLatency = 0;
       const expectedBonding = 255;

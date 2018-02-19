@@ -1595,7 +1595,7 @@ Ganglion.prototype._bled112GetAttributeWriteAlt = function (p) {
  * @private
  */
 Ganglion.prototype._bled112GetConnectDirect = function (p) {
-  return Buffer.from([0x00, 0x0F, 0x06, 0x03, p.sender[5], p.sender[4], p.sender[3], p.sender[2], p.sender[1], p.sender[0], p.addressType, 0x3C, 0x00, 0x4C, 0x00, 0x64, 0x00, 0x00, 0x00]);
+  return Buffer.from([0x00, 0x0F, 0x06, 0x03, p.sender[5], p.sender[4], p.sender[3], p.sender[2], p.sender[1], p.sender[0], p.addressType, 0x0A, 0x00, 0x4C, 0x00, 0x64, 0x00, 0x00, 0x00]);
 };
 
 Ganglion.prototype._bled112GetDisconnect = function (connection) {

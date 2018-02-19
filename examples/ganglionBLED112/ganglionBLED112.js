@@ -50,7 +50,7 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
   ganglion.on('sample', (sample) => {
     /** Work with sample */
     if (sample.valid) {
-      // console.log(sample.sampleNumber);
+      console.log(sample.sampleNumber);
       // UNCOMMENT BELOW FOR DROPPED PACKET CALCULATIONS...
       if (DO_PACKET_CALCULATIONS) {
         if (droppedPacketInterval === null) {
