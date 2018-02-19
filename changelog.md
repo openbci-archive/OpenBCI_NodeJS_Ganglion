@@ -1,3 +1,7 @@
+# v1.1.0
+
+Add support for BLED112
+
 # v1.0.0
 
 Complete over haul of the core of the application to use the OpenBCI utilities NodeJS package.
