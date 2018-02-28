@@ -17,6 +17,8 @@ const bufferEqual = require('buffer-equal');
  *
  * @property {Boolean} debug Print out a raw dump of bytes sent and received. (Default `false`)
  *
+ * @property {Boolean} driverAutoInit Used to auto start either noble or the bled112 drivers (Default `true`)
+ *
  * @property {Boolean} nobleAutoStart Automatically initialize `noble`. Subscribes to blue tooth state changes and such.
  *           (Default `true`)
  *
@@ -56,6 +58,7 @@ const bufferEqual = require('buffer-equal');
 const _options = {
   bled112: false,
   debug: false,
+  driverAutoInit: true,
   nobleAutoStart: true,
   nobleScanOnPowerOn: true,
   sendCounts: false,
@@ -230,17 +233,16 @@ function Ganglion (options, callback) {
     this._decompressedSamples[i] = [0, 0, 0, 0];
   }
 
-  try {
-    if (this.options.bled112) {
-      SerialPort = require('serialport');
-      this._bled112Init(); // It gets the serial port driver going
-    } else {
-      noble = require('noble');
-      if (this.options.nobleAutoStart) this._nobleInit(); // It get's the noble going
-    }
-    if (callback) callback();
-  } catch (e) {
-    if (callback) callback(e);
+  if (this.options.driverAutoInit) {
+    this.initDriver()
+      .then(() => {
+        callback();
+      })
+      .catch((err) => {
+        callback(err);
+      })
+  } else {
+    callback();
   }
 }
 
@@ -434,6 +436,33 @@ Ganglion.prototype.impedanceStart = function () {
  */
 Ganglion.prototype.impedanceStop = function () {
   return this.write(k.OBCIGanglionImpedanceStop);
+};
+
+/**
+ * Initialize the drivers
+ * @returns {Promise<any>}
+ */
+Ganglion.prototype.initDriver = function (portName) {
+  return new Promise((resolve, reject) => {
+    try {
+      if (this.options.bled112) {
+        SerialPort = require('serialport');
+        this._bled112Init(portName)
+          .then(() => {
+            resolve();
+          })
+          .catch(reason => {
+            reject(reason);
+          });
+      } else {
+        noble = require('noble');
+        if (this.options.nobleAutoStart) this._nobleInit(); // It get's the noble going
+      }
+      resolve();
+    } catch (e) {
+      reject(e);
+    }
+  });
 };
 
 /**
