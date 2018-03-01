@@ -240,7 +240,7 @@ function Ganglion (options, callback) {
       })
       .catch((err) => {
         callback(err);
-      })
+      });
   } else {
     callback();
   }

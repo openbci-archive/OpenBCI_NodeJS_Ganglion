@@ -21,14 +21,14 @@ describe('#ganglion-constructor', function () {
       done(err);
     };
     const ganglionCB = new Ganglion(cb);
-    expect(ganglionCB).to.exist();
+    expect(ganglionCB).to.not.equal(null);
   });
   it('should callback if options and callback', function (done) {
     const cb = (err) => {
       done(err);
     };
     const ganglionCB = new Ganglion({}, cb);
-    expect(ganglionCB).to.exist();
+    expect(ganglionCB).to.not.equal(null);
   });
 });
 
@@ -36,6 +36,7 @@ describe('#ganglion', function () {
   const mockProperties = {
     bled112: false,
     debug: false,
+    driverAutoInit: true,
     nobleAutoStart: false,
     nobleScanOnPowerOn: false,
     sendCounts: false,

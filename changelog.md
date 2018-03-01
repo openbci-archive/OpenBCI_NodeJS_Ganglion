@@ -1,3 +1,7 @@
+# v1.1.1
+
+Update init functions
+
 # v1.1.0
 
 Add support for BLED112
