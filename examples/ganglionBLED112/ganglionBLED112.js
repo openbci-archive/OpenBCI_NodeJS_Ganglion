@@ -3,7 +3,7 @@ const k = require('openbci-utilities/dist/constants');
 const verbose = true;
 let ganglion = new Ganglion({
   bled112: true,
-  debug: false,
+  debug: true,
   nobleScanOnPowerOn: true,
   sendCounts: true,
   verbose: verbose
@@ -118,7 +118,7 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
   });
   ganglion.searchStop()
     .then(() => {
-      return ganglion.connect(peripheral);
+      return ganglion.connect(peripheral.advertisementDataString);
     }).catch(errorFunc);
 });
 

@@ -342,7 +342,6 @@ describe('#ganglion', function () {
     it('should get the connect direct packet', function () {
       const expectedOutput = Buffer.from([0x00, 0x0F, 0x06, 0x03, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0x0A, 0x00, 0x4C, 0x00, 0x64, 0x00, 0x00, 0x00]);
 
-      const expectedConnection = 1;
       const expectedAddressType = 1;
       const expectedConnectionIntervalMinimum = 10;
       const expectedConnectionIntervalMaximum = 76;
@@ -352,7 +351,6 @@ describe('#ganglion', function () {
 
       const bledConnection = {
         addressType: expectedAddressType,
-        connection: expectedConnection,
         connectionIntervalMaximum: expectedConnectionIntervalMaximum,
         connectionIntervalMinimum: expectedConnectionIntervalMinimum,
         latency: expectedLatency,
