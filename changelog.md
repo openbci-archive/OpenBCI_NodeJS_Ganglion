@@ -1,3 +1,7 @@
+# v1.1.4
+
+Chore bump serial port version to v6.1.1
+
 # v1.1.1
 
 Update init functions
