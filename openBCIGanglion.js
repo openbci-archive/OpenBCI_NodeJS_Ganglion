@@ -236,13 +236,13 @@ function Ganglion (options, callback) {
   if (this.options.driverAutoInit) {
     this.initDriver()
       .then(() => {
-        callback();
+        if (callback) callback();
       })
       .catch((err) => {
-        callback(err);
+        if (callback) callback(err);
       });
   } else {
-    callback();
+    if (callback) callback();
   }
 }
 
