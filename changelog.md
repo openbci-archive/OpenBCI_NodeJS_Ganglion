@@ -5,6 +5,7 @@ Chore bump serial port version to v6.1.1
 ### Bug Fixes
 
 * Fix bug where disconnect device was not recognized for BLED112
+* Fix bug where local name was not in the same format as noble with bled112
 
 # v1.1.1
 

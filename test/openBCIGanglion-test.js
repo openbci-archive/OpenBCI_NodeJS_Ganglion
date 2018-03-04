@@ -228,6 +228,9 @@ describe('#ganglion', function () {
 
       const expectedOutput = {
         addressType: expectedAddressType,
+        advertisement: {
+          localName: expectedAdvertiseDataString
+        },
         advertisementDataString: expectedAdvertiseDataString,
         advertisementDataRaw: expectedAdvertiseDataRaw,
         bond: expectedBond,
@@ -558,9 +561,9 @@ describe('#ganglion', function () {
     });
     describe('BLED112EvtGapScanResponse', function () {
       const rawBuf = new Buffer([0x80, 0x1A, 0x06, 0x00, 0xCD, 0x00, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0xFF, 0x0F, 0x0E, 0x09, 0x47, 0x61, 0x6E, 0x67, 0x6C, 0x69, 0x6F, 0x6E, 0x2D, 0x35, 0x34, 0x63, 0x61]);
-      const mockPeripheral11 = {'rssi': -50, 'advertisementDataString': 'Ganglion-23ca', 'sender': Buffer.from([0, 1, 2, 3, 4, 5])};
-      const mockPeripheral12 = {'rssi': -51, 'advertisementDataString': 'Ganglion-23ca', 'sender': Buffer.from([0, 1, 2, 3, 4, 5])};
-      const mockPeripheral2 = {'rssi': -60, 'advertisementDataString': 'Ganglion-23cb', 'sender': Buffer.from([6, 7, 8, 9, 10, 11])};
+      const mockPeripheral11 = {'rssi': -50, 'advertisementDataString': 'Ganglion-23ca', 'advertisement': {localName: 'Ganglion-23ca'}, 'sender': Buffer.from([0, 1, 2, 3, 4, 5])};
+      const mockPeripheral12 = {'rssi': -51, 'advertisementDataString': 'Ganglion-23ca', 'advertisement': {localName: 'Ganglion-23ca'}, 'sender': Buffer.from([0, 1, 2, 3, 4, 5])};
+      const mockPeripheral2 = {'rssi': -60, 'advertisementDataString': 'Ganglion-23cb', 'advertisement': {localName: 'Ganglion-23ca'}, 'sender': Buffer.from([6, 7, 8, 9, 10, 11])};
       let funcStub;
       before(() => {
         funcStub = sinon.stub(ganglion, '_bled112DeviceFound');

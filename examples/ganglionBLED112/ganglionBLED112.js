@@ -117,10 +117,10 @@ const cycle = () => {
       //     console.log(err);
       //   })
     });
-    console.log("Date: ", Date.now());
+    console.log('Date: ', Date.now());
     ganglion.searchStop()
       .then(() => {
-        console.log("Date: ", Date.now());
+        console.log('Date: ', Date.now());
         return ganglion.connect(peripheral.advertisementDataString);
       }).catch(errorFunc);
   });

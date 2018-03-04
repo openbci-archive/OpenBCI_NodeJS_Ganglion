@@ -1274,6 +1274,8 @@ Ganglion.prototype._bled112Init = function (portName) {
 /**
  * @typedef {Object} BLED112Peripheral
  * @property {Number} addressType
+ * @property {Object} advertisement
+ * @property {String} advertisement.localName - Same as `advertisementDataString` but mimics what noble outputs
  * @property {String} advertisementDataString - The string of the advertisement data, not the full ad data
  * @property {Buffer | Buffer2} advertisementDataRaw - The entire end of ad data
  * @property {Number} bond
@@ -1532,6 +1534,9 @@ Ganglion.prototype._bled112ConnectionDisconnected = function (data) {
 Ganglion.prototype._bled112DeviceFound = function (data) {
   return {
     addressType: data[12],
+    advertisement: {
+      localName: data.slice(17, 30).toString()
+    },
     advertisementDataString: data.slice(17, 30).toString(),
     advertisementDataRaw: data.slice(15, 30),
     bond: data[13],
@@ -1943,7 +1948,7 @@ Ganglion.prototype._bled112ProcessRaw = function (data) {
       if (this.options.verbose) console.log(`BLED112EvtGapScanResponse: ${JSON.stringify(newPeripheral)}`);
       this.emit(kOBCIEmitterBLED112EvtGapScanResponse, newPeripheral);
       if (newPeripheral.advertisementDataString.match(/Ganglion/)) {
-        if (this.options.verbose) console.log(`Ganglion Found: ${JSON.stringify(newPeripheral)}`);
+        // if (this.options.verbose) console.log(`Ganglion Found: ${JSON.stringify(newPeripheral)}`);
         this.emit(k.OBCIEmitterGanglionFound, newPeripheral);
       }
       return newPeripheral;
