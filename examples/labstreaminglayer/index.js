@@ -1,6 +1,6 @@
-const Ganglion = require('openbci-ganglion').Ganglion;
+const Ganglion = require('../../openBCIGanglion');
 var portPub = 'tcp://127.0.0.1:3004';
-var zmq = require('zmq-prebuilt');
+var zmq = require('zeromq');
 var socket = zmq.socket('pair');
 var verbose = false;
 

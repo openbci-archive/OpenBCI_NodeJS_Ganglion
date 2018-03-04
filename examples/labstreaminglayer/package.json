@@ -19,7 +19,7 @@
   "license": "MIT",
   "dependencies": {
     "openbci-ganglion": "^1.0.0",
-    "zmq-prebuilt": "^2.1.0"
+    "zeromq": "^4.6.0"
   },
   "devEngines": {
     "node": "<=6.x",

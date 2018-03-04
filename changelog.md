@@ -1,3 +1,7 @@
+# v1.1.5
+
+Chore bump noble version to v1.9.0 for macOS High Sierra 
+
 # v1.1.4
 
 Chore bump serial port version to v6.1.1
