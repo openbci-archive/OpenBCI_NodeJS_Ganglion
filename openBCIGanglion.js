@@ -17,6 +17,8 @@ const bufferEqual = require('buffer-equal');
  *
  * @property {Boolean} debug Print out a raw dump of bytes sent and received. (Default `false`)
  *
+ * @property {Boolean} driverAutoInit Used to auto start either noble or the bled112 drivers (Default `true`)
+ *
  * @property {Boolean} nobleAutoStart Automatically initialize `noble`. Subscribes to blue tooth state changes and such.
  *           (Default `true`)
  *
@@ -56,6 +58,7 @@ const bufferEqual = require('buffer-equal');
 const _options = {
   bled112: false,
   debug: false,
+  driverAutoInit: true,
   nobleAutoStart: true,
   nobleScanOnPowerOn: true,
   sendCounts: false,
@@ -210,6 +213,7 @@ function Ganglion (options, callback) {
   this._peripheral = null;
   this._rawDataPacketToSample = k.rawDataToSampleObjectDefault(k.numberOfChannelsForBoardType(k.OBCIBoardGanglion));
   this._rawDataPacketToSample.scale = !this.options.sendCounts;
+  this._rawDataPacketToSample.sendCounts = this.options.sendCounts;
   this._rawDataPacketToSample.protocol = k.OBCIProtocolBLE;
   this._rawDataPacketToSample.verbose = this.options.verbose;
   this._rfduinoService = null;
@@ -230,17 +234,16 @@ function Ganglion (options, callback) {
     this._decompressedSamples[i] = [0, 0, 0, 0];
   }
 
-  try {
-    if (this.options.bled112) {
-      SerialPort = require('serialport');
-      this._bled112Init(); // It gets the serial port driver going
-    } else {
-      noble = require('noble');
-      if (this.options.nobleAutoStart) this._nobleInit(); // It get's the noble going
-    }
+  if (this.options.driverAutoInit) {
+    this.initDriver()
+      .then(() => {
+        if (callback) callback();
+      })
+      .catch((err) => {
+        if (callback) callback(err);
+      });
+  } else {
     if (callback) callback();
-  } catch (e) {
-    if (callback) callback(e);
   }
 }
 
@@ -303,6 +306,21 @@ Ganglion.prototype.channelOn = function (channelNumber) {
 };
 
 /**
+ * Used to clean up emitters
+ */
+Ganglion.prototype.cleanupEmitters = function () {
+  this.removeAllListeners('droppedPacket');
+  this.removeAllListeners('accelerometer');
+  this.removeAllListeners('sample');
+  this.removeAllListeners('message');
+  this.removeAllListeners('impedance');
+  this.removeAllListeners('close');
+  this.removeAllListeners('error');
+  this.removeAllListeners('ganglionFound');
+  this.removeAllListeners('ready');
+};
+
+/**
  * @description The essential precursor method to be called initially to establish a
  *              ble connection to the OpenBCI ganglion board.
  * @param id {String | Object} - a string local name or peripheral object
@@ -312,13 +330,26 @@ Ganglion.prototype.channelOn = function (channelNumber) {
 Ganglion.prototype.connect = function (id) {
   return new Promise((resolve, reject) => {
     if (_.isString(id)) {
-      k.getPeripheralWithLocalName(this.ganglionPeripheralArray, id)
-        .then((p) => {
-          if (this.options.bled112) return this._bled112Connect(p);
-          else return this._nobleConnect(p);
-        })
-        .then(resolve)
-        .catch(reject);
+      if (this.options.bled112) {
+        let gPerih = null;
+        _.forEach(this.peripheralArray, (peripheral) => {
+          if (peripheral.advertisementDataString === id) {
+            gPerih = peripheral;
+          }
+        });
+        if (gPerih) {
+          this._bled112Connect(gPerih)
+            .then(resolve)
+            .catch(reject);
+        }
+      } else {
+        k.getPeripheralWithLocalName(this.ganglionPeripheralArray, id)
+          .then((p) => {
+            return this._nobleConnect(p);
+          })
+          .then(resolve)
+          .catch(reject);
+      }
     } else if (_.isObject(id)) {
       let func;
       if (this.options.bled112) func = this._bled112Connect.bind(this);
@@ -337,6 +368,14 @@ Ganglion.prototype.connect = function (id) {
  */
 Ganglion.prototype.destroyNoble = function () {
   this._nobleDestroy();
+};
+
+/**
+ * Destroys the noble!
+ */
+Ganglion.prototype.destroyBLED112 = function () {
+  if (this.options.verbose) console.log('destroyBLED112');
+  this._bled112SerialClose();
 };
 
 /**
@@ -381,7 +420,7 @@ Ganglion.prototype.disconnect = function (stopStreaming) {
             .then(() => {
               disconnectTimeout = setTimeout(() => {
                 reject(Error('Failed to get disconnect message'));
-              }, 750);
+              }, 1000);
             })
             .catch((err) => {
               this._disconnected();
@@ -434,6 +473,33 @@ Ganglion.prototype.impedanceStart = function () {
  */
 Ganglion.prototype.impedanceStop = function () {
   return this.write(k.OBCIGanglionImpedanceStop);
+};
+
+/**
+ * Initialize the drivers
+ * @returns {Promise<any>}
+ */
+Ganglion.prototype.initDriver = function (portName) {
+  return new Promise((resolve, reject) => {
+    try {
+      if (this.options.bled112) {
+        SerialPort = require('serialport');
+        this._bled112Init(portName)
+          .then(() => {
+            resolve();
+          })
+          .catch(reason => {
+            reject(reason);
+          });
+      } else {
+        noble = require('noble');
+        if (this.options.nobleAutoStart) this._nobleInit(); // It get's the noble going
+        resolve();
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
 };
 
 /**
@@ -512,32 +578,36 @@ Ganglion.prototype.searchStart = function (maxSearchTime) {
 
   return new Promise((resolve, reject) => {
     this._searchTimeout = setTimeout(() => {
-      let searchStopFunc;
-
       if (this.options.bled112) {
-        searchStopFunc = this._bled112ScanStop;
+        this._bled112ScanStop().catch(reject);
       } else {
-        searchStopFunc = this._nobleScanStop;
+        this._nobleScanStop().catch(reject);
       }
-      searchStopFunc.catch(reject);
       reject('Timeout: Unable to find Ganglion');
     }, searchTime);
-    let searchStartFunc;
     if (this.options.bled112) {
-      searchStartFunc = this._bled112ScanStart;
+      this._bled112ScanStart()
+        .then(() => {
+          resolve();
+        })
+        .catch((err) => {
+          if (err !== k.OBCIErrorNobleAlreadyScanning) { // If it's already scanning
+            clearTimeout(this._searchTimeout);
+            reject(err);
+          }
+        });
     } else {
-      searchStartFunc = this._nobleScanStart;
+      this._nobleScanStart()
+        .then(() => {
+          resolve();
+        })
+        .catch((err) => {
+          if (err !== k.OBCIErrorNobleAlreadyScanning) { // If it's already scanning
+            clearTimeout(this._searchTimeout);
+            reject(err);
+          }
+        });
     }
-    searchStartFunc()
-      .then(() => {
-        resolve();
-      })
-      .catch((err) => {
-        if (err !== k.OBCIErrorNobleAlreadyScanning) { // If it's already scanning
-          clearTimeout(this._searchTimeout);
-          reject(err);
-        }
-      });
   });
 };
 
@@ -1073,8 +1143,6 @@ const kOBCIBLED112ParsingProcedureComplete = 7;
  */
 Ganglion.prototype._bled112Init = function (portName) {
   return new Promise((resolve, reject) => {
-    if (this.options.verbose) console.log('Ganglion with BLED112 ready to go!');
-
     this.portName = portName || '/dev/tty.usbmodem1';
     if (this.options.verbose) console.log('_bled112Init: using real board ' + this.portName);
     this.serial = new SerialPort(this.portName, {
@@ -1089,25 +1157,31 @@ Ganglion.prototype._bled112Init = function (portName) {
     this.serial.once('open', () => {
       this._bled112Connected = true;
       if (this.options.verbose) console.log('Serial Port Open');
+      this.emit('open');
+      if (this.options.verbose) console.log('Ganglion with BLED112 ready to go!');
       if (this.options.nobleScanOnPowerOn) {
         this._bled112ScanStart()
           .then(() => {
             if (this.options.verbose) console.log('On serial port open start scan success');
+            resolve();
           })
           .catch((err) => {
             if (this.options.verbose) console.log('On serial port open start scan error', err.message);
+            reject(err);
           });
+      } else {
+        resolve();
       }
     });
     this.serial.once('close', () => {
       if (this.options.verbose) console.log('Serial Port Closed');
       // 'close' is emitted in _disconnected()
-      this._bled112Disconnected();
+      this._bled112SerialDisconnected();
     });
     this.serial.once('error', (err) => {
       if (this.options.verbose) console.log('Serial Port Error');
       this.emit('error', err);
-      this._bled112Disconnected(err);
+      this._bled112SerialDisconnected(err);
     });
   });
 };
@@ -1200,6 +1274,8 @@ Ganglion.prototype._bled112Init = function (portName) {
 /**
  * @typedef {Object} BLED112Peripheral
  * @property {Number} addressType
+ * @property {Object} advertisement
+ * @property {String} advertisement.localName - Same as `advertisementDataString` but mimics what noble outputs
  * @property {String} advertisementDataString - The string of the advertisement data, not the full ad data
  * @property {Buffer | Buffer2} advertisementDataRaw - The entire end of ad data
  * @property {Number} bond
@@ -1385,9 +1461,16 @@ Ganglion.prototype._bled112Connect = function (p) {
     });
 
     // Connect to peripheral with mac address
-    this._bled112Connection = p.connection;
+    // this._bled112Connection = p.connection;
     this._bled112ParseForConnectDirect();
-    this._bled112WriteAndDrain(this._bled112GetConnectDirect(p)).catch(reject);
+    this._bled112WriteAndDrain(this._bled112GetConnectDirect({
+      addressType: 1,
+      connectionIntervalMaximum: 76,
+      connectionIntervalMinimum: 10,
+      latency: 0,
+      sender: p.sender,
+      timeout: 100
+    })).catch(reject);
   });
 };
 
@@ -1451,6 +1534,9 @@ Ganglion.prototype._bled112ConnectionDisconnected = function (data) {
 Ganglion.prototype._bled112DeviceFound = function (data) {
   return {
     addressType: data[12],
+    advertisement: {
+      localName: data.slice(17, 30).toString()
+    },
     advertisementDataString: data.slice(17, 30).toString(),
     advertisementDataRaw: data.slice(15, 30),
     bond: data[13],
@@ -1477,17 +1563,28 @@ Ganglion.prototype.bled112CleanupEmitters = function () {
   this.removeAllListeners(kOBCIEmitterBLED112EvtAttclientProcedureCompleted);
 };
 
+/**
+ * Call to destroy the noble event emitters.
+ * @private
+ */
+Ganglion.prototype._bled112SerialClose = function () {
+  if (this.options.verbose) console.log('_bled112SerialClose');
+  if (this.serial) {
+    this.serial.close((err) => {
+      if (err) {
+        if (this.options.verbose) console.log('Serial Port Close Error', err);
+      }
+    });
+  }
+};
+
 Ganglion.prototype._bled112Disconnect = function () {
   return new Promise((resolve, reject) => {
     if (this._bled112Connection >= 0) {
+      if (this.options.verbose) console.log('Sending disconnect command');
       this.once(kOBCIEmitterBLED112RspGapDisconnect, () => {
-        this.serial.close((err) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve();
-          }
-        });
+        if (this.options.verbose) console.log('_bled112Disconnect: success');
+        resolve();
       });
       this._bled112ParsingMode = kOBCIBLED112ParsingDisconnect;
 
@@ -1502,10 +1599,10 @@ Ganglion.prototype._bled112Disconnect = function () {
  * @description Called once when for any reason the ble connection is no longer open.
  * @private
  */
-Ganglion.prototype._bled112Disconnected = function () {
+Ganglion.prototype._bled112SerialDisconnected = function () {
   this._streaming = false;
   this._connected = false;
-  this._bled112Connected = true;
+  this._bled112Connected = false;
   this._bled112GanglionGroup = null;
   this._bled112Connection = -1;
 
@@ -1816,7 +1913,7 @@ Ganglion.prototype._bled112ProcessRaw = function (data) {
         if (this.options.verbose) console.log(`BLED112RspGapConnectDirect: ${JSON.stringify(newConnection)}`);
         this.emit(kOBCIEmitterBLED112RspGapConnectDirect, newConnection);
         return newConnection;
-      } else if (bufferEqual(data.slice(0, bleRspGapDisconnect.byteLength), bleRspGapConnectDirect)) {
+      } else if (bufferEqual(data.slice(0, bleRspGapDisconnect.byteLength), bleRspGapDisconnect)) {
         const killedConnection = {
           connection: data[4],
           result: data[6] | data[5]
@@ -1851,6 +1948,7 @@ Ganglion.prototype._bled112ProcessRaw = function (data) {
       if (this.options.verbose) console.log(`BLED112EvtGapScanResponse: ${JSON.stringify(newPeripheral)}`);
       this.emit(kOBCIEmitterBLED112EvtGapScanResponse, newPeripheral);
       if (newPeripheral.advertisementDataString.match(/Ganglion/)) {
+        // if (this.options.verbose) console.log(`Ganglion Found: ${JSON.stringify(newPeripheral)}`);
         this.emit(k.OBCIEmitterGanglionFound, newPeripheral);
       }
       return newPeripheral;
@@ -1896,7 +1994,7 @@ Ganglion.prototype._bled112ProcessRaw = function (data) {
       return this._processBytes(newAttributeValue.value);
     }
   }
-  if (this.options.verbose) console.log('Not able to identify the data');
+  if (this.options.verbose) console.log('Not able to identify the data', data);
   return data;
 };
 
@@ -2120,7 +2218,7 @@ Ganglion.prototype._bled112RspGroupType = function (data) {
  */
 Ganglion.prototype._bled112ScanStart = function () {
   return new Promise((resolve, reject) => {
-    if (this.isSearching()) return reject(k.OBCIErrorNobleAlreadyScanning);
+    if (this.isSearching()) return reject(Error('Scan already started'));
 
     this.peripheralArray = [];
     this._scanning = true;
@@ -2163,7 +2261,7 @@ Ganglion.prototype._bled112WriteAndDrain = function (data) {
         console.log('Error [writeAndDrain]: ' + error);
         reject(error);
       } else {
-        this.serial.drain(function () {
+        this.serial.drain(() => {
           resolve();
         });
       }

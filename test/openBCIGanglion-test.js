@@ -21,14 +21,14 @@ describe('#ganglion-constructor', function () {
       done(err);
     };
     const ganglionCB = new Ganglion(cb);
-    expect(ganglionCB).to.exist();
+    expect(ganglionCB).to.not.equal(null);
   });
   it('should callback if options and callback', function (done) {
     const cb = (err) => {
       done(err);
     };
     const ganglionCB = new Ganglion({}, cb);
-    expect(ganglionCB).to.exist();
+    expect(ganglionCB).to.not.equal(null);
   });
 });
 
@@ -36,6 +36,7 @@ describe('#ganglion', function () {
   const mockProperties = {
     bled112: false,
     debug: false,
+    driverAutoInit: true,
     nobleAutoStart: false,
     nobleScanOnPowerOn: false,
     sendCounts: false,
@@ -227,6 +228,9 @@ describe('#ganglion', function () {
 
       const expectedOutput = {
         addressType: expectedAddressType,
+        advertisement: {
+          localName: expectedAdvertiseDataString
+        },
         advertisementDataString: expectedAdvertiseDataString,
         advertisementDataRaw: expectedAdvertiseDataRaw,
         bond: expectedBond,
@@ -341,7 +345,6 @@ describe('#ganglion', function () {
     it('should get the connect direct packet', function () {
       const expectedOutput = Buffer.from([0x00, 0x0F, 0x06, 0x03, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0x0A, 0x00, 0x4C, 0x00, 0x64, 0x00, 0x00, 0x00]);
 
-      const expectedConnection = 1;
       const expectedAddressType = 1;
       const expectedConnectionIntervalMinimum = 10;
       const expectedConnectionIntervalMaximum = 76;
@@ -351,7 +354,6 @@ describe('#ganglion', function () {
 
       const bledConnection = {
         addressType: expectedAddressType,
-        connection: expectedConnection,
         connectionIntervalMaximum: expectedConnectionIntervalMaximum,
         connectionIntervalMinimum: expectedConnectionIntervalMinimum,
         latency: expectedLatency,
@@ -498,6 +500,19 @@ describe('#ganglion', function () {
         expect(retVal).to.not.equal(null);
       });
     });
+    describe('BLED112RspGapDisconnect', function () {
+      const rawBuf = Buffer.from([0x00, 0x03, 0x03, 0x00, 0x01, 0x00, 0x00]);
+      it('emit', function (done) {
+        ganglion.once('bleRspGapDisconnect', () => {
+          done();
+        });
+        ganglion._bled112ProcessRaw(rawBuf);
+      });
+      it('returns', function () {
+        const retVal = ganglion._bled112ProcessRaw(rawBuf);
+        expect(retVal).to.not.equal(null);
+      });
+    });
     describe('BLED112EvtConnectionStatus', function () {
       const rawBuf = Buffer.from([0x80, 0x10, 0x03, 0x00, 0x01, 0x05, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0x3C, 0x00, 0x64, 0x00, 0x00, 0x00, 0xFF]);
       const fooBar = {'foo': 'bar'};
@@ -546,9 +561,9 @@ describe('#ganglion', function () {
     });
     describe('BLED112EvtGapScanResponse', function () {
       const rawBuf = new Buffer([0x80, 0x1A, 0x06, 0x00, 0xCD, 0x00, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0xFF, 0x0F, 0x0E, 0x09, 0x47, 0x61, 0x6E, 0x67, 0x6C, 0x69, 0x6F, 0x6E, 0x2D, 0x35, 0x34, 0x63, 0x61]);
-      const mockPeripheral11 = {'rssi': -50, 'advertisementDataString': 'Ganglion-23ca', 'sender': Buffer.from([0, 1, 2, 3, 4, 5])};
-      const mockPeripheral12 = {'rssi': -51, 'advertisementDataString': 'Ganglion-23ca', 'sender': Buffer.from([0, 1, 2, 3, 4, 5])};
-      const mockPeripheral2 = {'rssi': -60, 'advertisementDataString': 'Ganglion-23cb', 'sender': Buffer.from([6, 7, 8, 9, 10, 11])};
+      const mockPeripheral11 = {'rssi': -50, 'advertisementDataString': 'Ganglion-23ca', 'advertisement': {localName: 'Ganglion-23ca'}, 'sender': Buffer.from([0, 1, 2, 3, 4, 5])};
+      const mockPeripheral12 = {'rssi': -51, 'advertisementDataString': 'Ganglion-23ca', 'advertisement': {localName: 'Ganglion-23ca'}, 'sender': Buffer.from([0, 1, 2, 3, 4, 5])};
+      const mockPeripheral2 = {'rssi': -60, 'advertisementDataString': 'Ganglion-23cb', 'advertisement': {localName: 'Ganglion-23ca'}, 'sender': Buffer.from([6, 7, 8, 9, 10, 11])};
       let funcStub;
       before(() => {
         funcStub = sinon.stub(ganglion, '_bled112DeviceFound');
