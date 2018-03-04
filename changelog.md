@@ -2,6 +2,10 @@
 
 Chore bump serial port version to v6.1.1
 
+### Bug Fixes
+
+* Fix bug where disconnect device was not recognized for BLED112
+
 # v1.1.1
 
 Update init functions

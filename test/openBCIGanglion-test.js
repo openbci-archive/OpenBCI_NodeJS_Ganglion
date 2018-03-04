@@ -497,6 +497,19 @@ describe('#ganglion', function () {
         expect(retVal).to.not.equal(null);
       });
     });
+    describe('BLED112RspGapDisconnect', function () {
+      const rawBuf = Buffer.from([0x00, 0x03, 0x03, 0x00, 0x01, 0x00, 0x00]);
+      it('emit', function (done) {
+        ganglion.once('bleRspGapDisconnect', () => {
+          done();
+        });
+        ganglion._bled112ProcessRaw(rawBuf);
+      });
+      it('returns', function () {
+        const retVal = ganglion._bled112ProcessRaw(rawBuf);
+        expect(retVal).to.not.equal(null);
+      });
+    });
     describe('BLED112EvtConnectionStatus', function () {
       const rawBuf = Buffer.from([0x80, 0x10, 0x03, 0x00, 0x01, 0x05, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0x3C, 0x00, 0x64, 0x00, 0x00, 0x00, 0xFF]);
       const fooBar = {'foo': 'bar'};

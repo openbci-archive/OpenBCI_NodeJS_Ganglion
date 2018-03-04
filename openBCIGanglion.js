@@ -213,6 +213,7 @@ function Ganglion (options, callback) {
   this._peripheral = null;
   this._rawDataPacketToSample = k.rawDataToSampleObjectDefault(k.numberOfChannelsForBoardType(k.OBCIBoardGanglion));
   this._rawDataPacketToSample.scale = !this.options.sendCounts;
+  this._rawDataPacketToSample.sendCounts = this.options.sendCounts;
   this._rawDataPacketToSample.protocol = k.OBCIProtocolBLE;
   this._rawDataPacketToSample.verbose = this.options.verbose;
   this._rfduinoService = null;
@@ -305,6 +306,21 @@ Ganglion.prototype.channelOn = function (channelNumber) {
 };
 
 /**
+ * Used to clean up emitters
+ */
+Ganglion.prototype.cleanupEmitters = function () {
+  this.removeAllListeners('droppedPacket');
+  this.removeAllListeners('accelerometer');
+  this.removeAllListeners('sample');
+  this.removeAllListeners('message');
+  this.removeAllListeners('impedance');
+  this.removeAllListeners('close');
+  this.removeAllListeners('error');
+  this.removeAllListeners('ganglionFound');
+  this.removeAllListeners('ready');
+};
+
+/**
  * @description The essential precursor method to be called initially to establish a
  *              ble connection to the OpenBCI ganglion board.
  * @param id {String | Object} - a string local name or peripheral object
@@ -355,6 +371,14 @@ Ganglion.prototype.destroyNoble = function () {
 };
 
 /**
+ * Destroys the noble!
+ */
+Ganglion.prototype.destroyBLED112 = function () {
+  if (this.options.verbose) console.log('destroyBLED112');
+  this._bled112SerialClose();
+};
+
+/**
  * Destroys the multi packet buffer.
  */
 Ganglion.prototype.destroyMultiPacketBuffer = function () {
@@ -396,7 +420,7 @@ Ganglion.prototype.disconnect = function (stopStreaming) {
             .then(() => {
               disconnectTimeout = setTimeout(() => {
                 reject(Error('Failed to get disconnect message'));
-              }, 750);
+              }, 1000);
             })
             .catch((err) => {
               this._disconnected();
@@ -1152,13 +1176,12 @@ Ganglion.prototype._bled112Init = function (portName) {
     this.serial.once('close', () => {
       if (this.options.verbose) console.log('Serial Port Closed');
       // 'close' is emitted in _disconnected()
-      this.emit('close');
-      this._bled112Disconnected();
+      this._bled112SerialDisconnected();
     });
     this.serial.once('error', (err) => {
       if (this.options.verbose) console.log('Serial Port Error');
       this.emit('error', err);
-      this._bled112Disconnected(err);
+      this._bled112SerialDisconnected(err);
     });
   });
 };
@@ -1535,17 +1558,28 @@ Ganglion.prototype.bled112CleanupEmitters = function () {
   this.removeAllListeners(kOBCIEmitterBLED112EvtAttclientProcedureCompleted);
 };
 
+/**
+ * Call to destroy the noble event emitters.
+ * @private
+ */
+Ganglion.prototype._bled112SerialClose = function () {
+  if (this.options.verbose) console.log('_bled112SerialClose');
+  if (this.serial) {
+    this.serial.close((err) => {
+      if (err) {
+        if (this.options.verbose) console.log('Serial Port Close Error', err);
+      }
+    });
+  }
+};
+
 Ganglion.prototype._bled112Disconnect = function () {
   return new Promise((resolve, reject) => {
     if (this._bled112Connection >= 0) {
+      if (this.options.verbose) console.log('Sending disconnect command');
       this.once(kOBCIEmitterBLED112RspGapDisconnect, () => {
-        this.serial.close((err) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve();
-          }
-        });
+        if (this.options.verbose) console.log('_bled112Disconnect: success');
+        resolve();
       });
       this._bled112ParsingMode = kOBCIBLED112ParsingDisconnect;
 
@@ -1560,7 +1594,7 @@ Ganglion.prototype._bled112Disconnect = function () {
  * @description Called once when for any reason the ble connection is no longer open.
  * @private
  */
-Ganglion.prototype._bled112Disconnected = function () {
+Ganglion.prototype._bled112SerialDisconnected = function () {
   this._streaming = false;
   this._connected = false;
   this._bled112Connected = false;
@@ -1874,7 +1908,7 @@ Ganglion.prototype._bled112ProcessRaw = function (data) {
         if (this.options.verbose) console.log(`BLED112RspGapConnectDirect: ${JSON.stringify(newConnection)}`);
         this.emit(kOBCIEmitterBLED112RspGapConnectDirect, newConnection);
         return newConnection;
-      } else if (bufferEqual(data.slice(0, bleRspGapDisconnect.byteLength), bleRspGapConnectDirect)) {
+      } else if (bufferEqual(data.slice(0, bleRspGapDisconnect.byteLength), bleRspGapDisconnect)) {
         const killedConnection = {
           connection: data[4],
           result: data[6] | data[5]
@@ -1955,7 +1989,7 @@ Ganglion.prototype._bled112ProcessRaw = function (data) {
       return this._processBytes(newAttributeValue.value);
     }
   }
-  if (this.options.verbose) console.log('Not able to identify the data');
+  if (this.options.verbose) console.log('Not able to identify the data', data);
   return data;
 };
 
