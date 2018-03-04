@@ -5,6 +5,7 @@
   "main": "openBCIGanglion.js",
   "scripts": {
     "connect-test": "node examples/ganglionConnectionTest/ganglionConnectionTest.js",
+    "docs": "jsdoc2md openBCIGanglion.js",
     "server": "node examples/ganglionServer/ganglionServer.js",
     "test": "semistandard | snazzy && mocha test",
     "test-cov": "istanbul cover ./node_modules/mocha/bin/_mocha -- -R spec && codecov",
@@ -36,6 +37,7 @@
     "chai-as-promised": "^5.2.0",
     "codecov": "^1.0.1",
     "istanbul": "^0.4.4",
+    "jsdoc-to-markdown": "^4.0.1",
     "mocha": "^3.0.2",
     "sandboxed-module": "^2.0.3",
     "semistandard": "^9.0.0",

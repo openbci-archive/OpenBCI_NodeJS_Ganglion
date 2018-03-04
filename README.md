@@ -22,10 +22,7 @@ The purpose of this module is to **get connected** and **start streaming** as fa
 4. [Ganglion](#ganglion)
   2. [General Overview](#general-overview)
   3. [SDK Reference Guide](#sdk-reference-guide)
-    * [Constructor](#constructor)
-    * [Methods](#method)
     * [Events](#event)
-    * [Constants](#constants)
 6. [Interfacing With Other Tools](#interfacing-with-other-tools)
 7. [Developing](#developing)
 8. [Testing](#developing-testing)
@@ -216,230 +213,379 @@ See Reference Guide for a complete list of impedance tests.
 
 ## <a name="sdk-reference-guide"></a> SDK Reference Guide:
 ---------------
-### <a name="constructor"></a> Constructor:
 
-#### <a name="init"></a> Ganglion (options, callback)
+## Classes
 
-Create new instance of a Ganglion board.
+<dl>
+<dt><a href="#Ganglion">Ganglion</a></dt>
+<dd></dd>
+</dl>
 
-**_options (optional)_**
+## Typedefs
 
-Board optional configurations.
+<dl>
+<dt><a href="#InitializationObject">InitializationObject</a> : <code>Object</code></dt>
+<dd><p>Board optional configurations.</p>
+</dd>
+<dt><a href="#BLED112AttributeValue">BLED112AttributeValue</a> : <code>Object</code></dt>
+<dd></dd>
+<dt><a href="#BLED112AttributeWrite">BLED112AttributeWrite</a> : <code>Object</code></dt>
+<dd></dd>
+<dt><a href="#BLEDConnection">BLEDConnection</a> : <code>Object</code></dt>
+<dd></dd>
+<dt><a href="#BLED112FindInformationFound">BLED112FindInformationFound</a> : <code>Object</code></dt>
+<dd></dd>
+<dt><a href="#BLED112GapConnectDirect">BLED112GapConnectDirect</a> : <code>Object</code></dt>
+<dd></dd>
+<dt><a href="#BLED112GroupService">BLED112GroupService</a> : <code>Object</code></dt>
+<dd></dd>
+<dt><a href="#BLED112ParseRawAttributeValue">BLED112ParseRawAttributeValue</a> : <code>Object</code></dt>
+<dd></dd>
+<dt><a href="#BLED112ParseRawHeadTail">BLED112ParseRawHeadTail</a> : <code>Object</code></dt>
+<dd></dd>
+<dt><a href="#BLED112ParseRawWord">BLED112ParseRawWord</a> : <code>Object</code></dt>
+<dd></dd>
+<dt><a href="#BLED112Peripheral">BLED112Peripheral</a> : <code>Object</code></dt>
+<dd></dd>
+<dt><a href="#BLED112RspGroupType">BLED112RspGroupType</a> : <code>Object</code></dt>
+<dd></dd>
+</dl>
 
-* `debug` {Boolean} - Print out a raw dump of bytes sent and received (Default `false`)
-* `nobleAutoStart` {Boolean} - Automatically initialize `noble`. Subscribes to blue tooth state changes and such. (Default `true`)
-* `nobleScanOnPowerOn` {Boolean} - Start scanning for Ganglion BLE devices as soon as power turns on.  (Default `true`)
-* `sendCounts` {Boolean} - Send integer raw counts instead of scaled floats. (Default `false`)
-* `simulate` {Boolean} - Full functionality, just mock data. Must attach Daisy module by setting `simulatorDaisyModuleAttached` to `true` in order to get 16 channels. (Default `false`)
-* `simulatorBoardFailure` {Boolean} - Simulates board communications failure. This occurs when the RFduino on the board is not polling the RFduino on the dongle. (Default `false`)
-* `simulatorHasAccelerometer` - {Boolean} - Sets simulator to send packets with accelerometer data. (Default `true`)
-* `simulatorInjectAlpha` - {Boolean} - Inject a 10Hz alpha wave in Channels 1 and 2 (Default `true`)
-* `simulatorInjectLineNoise` {String} - Injects line noise on channels. (3 Possible Options)
-  * `60Hz` - 60Hz line noise (Default) [America]
-  * `50Hz` - 50Hz line noise [Europe]
-  * `none` - Do not inject line noise.
-* `simulatorSampleRate` {Number} - The sample rate to use for the simulator. Simulator will set to 125 if `simulatorDaisyModuleAttached` is set `true`. However, setting this option overrides that setting and this sample rate will be used. (Default is `250`)
-* `verbose` {Boolean} - Print out useful debugging events (Default `false`)
+<a name="Ganglion"></a>
 
-**Note, we have added support for either all lowercase OR camel case for the options, use whichever style you prefer.**
+## Ganglion
+**Kind**: global class  
+**Author**: AJ Keller (@pushtheworldllc)  
 
-**_callback (optional)_**
+* [Ganglion](#Ganglion)
+    * [new Ganglion(options, callback)](#new_Ganglion_new)
+    * _instance_
+        * [.options](#Ganglion+options) : [<code>InitializationObject</code>](#InitializationObject)
+        * [._accelArray](#Ganglion+_accelArray)
+        * [._bled112WriteCharacteristic](#Ganglion+_bled112WriteCharacteristic) : [<code>BLED112FindInformationFound</code>](#BLED112FindInformationFound)
+        * [.buffer](#Ganglion+buffer)
+        * [.accelStart()](#Ganglion+accelStart) ⇒ <code>Promise</code>
+        * [.accelStop()](#Ganglion+accelStop) ⇒ <code>Promise</code>
+        * [.autoReconnect()](#Ganglion+autoReconnect)
+        * [.channelOff(channelNumber)](#Ganglion+channelOff) ⇒ <code>Promise.&lt;T&gt;</code>
+        * [.channelOn(channelNumber)](#Ganglion+channelOn) ⇒ <code>Promise.&lt;T&gt;</code> \| <code>\*</code>
+        * [.cleanupEmitters()](#Ganglion+cleanupEmitters)
+        * [.connect(id)](#Ganglion+connect) ⇒ <code>Promise</code>
+        * [.destroyNoble()](#Ganglion+destroyNoble)
+        * [.destroyBLED112()](#Ganglion+destroyBLED112)
+        * [.destroyMultiPacketBuffer()](#Ganglion+destroyMultiPacketBuffer)
+        * [.disconnect(stopStreaming)](#Ganglion+disconnect) ⇒ <code>Promise</code>
+        * [.getLocalName()](#Ganglion+getLocalName) ⇒ <code>null</code> \| <code>String</code>
+        * [.getMutliPacketBuffer()](#Ganglion+getMutliPacketBuffer) ⇒ <code>null</code> \| <code>Buffer</code>
+        * [.impedanceStart()](#Ganglion+impedanceStart) ⇒ <code>global.Promise</code> \| <code>Promise</code>
+        * [.impedanceStop()](#Ganglion+impedanceStop) ⇒ <code>global.Promise</code> \| <code>Promise</code>
+        * [.initDriver()](#Ganglion+initDriver) ⇒ <code>Promise.&lt;any&gt;</code>
+        * [.isConnected()](#Ganglion+isConnected) ⇒ <code>boolean</code>
+        * [.isNobleReady()](#Ganglion+isNobleReady) ⇒ <code>boolean</code>
+        * [.isSearching()](#Ganglion+isSearching) ⇒ <code>boolean</code>
+        * [.isStreaming()](#Ganglion+isStreaming) ⇒ <code>boolean</code>
+        * [.numberOfChannels()](#Ganglion+numberOfChannels) ⇒ <code>Number</code>
+        * [.printRegisterSettings()](#Ganglion+printRegisterSettings) ⇒ <code>Promise.&lt;T&gt;</code> \| <code>\*</code>
+        * [.sampleRate()](#Ganglion+sampleRate) ⇒ <code>Number</code>
+        * [.searchStart(&#x60;maxSearchTime&#x60;)](#Ganglion+searchStart) ⇒ <code>Promise</code>
+        * [.searchStop()](#Ganglion+searchStop) ⇒ <code>global.Promise</code> \| <code>Promise</code>
+        * [.softReset()](#Ganglion+softReset) ⇒ <code>Promise</code>
+        * [.streamStart()](#Ganglion+streamStart) ⇒ <code>Promise</code>
+        * [.streamStop()](#Ganglion+streamStop) ⇒ <code>Promise</code>
+        * [.syntheticEnable()](#Ganglion+syntheticEnable) ⇒ <code>Promise</code>
+        * [.syntheticDisable()](#Ganglion+syntheticDisable) ⇒ <code>Promise</code>
+        * [.write(data)](#Ganglion+write) ⇒ <code>Promise</code>
+        * [._bled112WriteAndDrain(data)](#Ganglion+_bled112WriteAndDrain) ⇒ <code>Promise</code>
+    * _inner_
+        * [~o](#Ganglion..o)
 
-Callback function to catch errors. Returns only error if an error was encountered.
+<a name="new_Ganglion_new"></a>
 
-### <a name="methods"></a> Methods:
+### new Ganglion(options, callback)
+The initialization method to call first, before any other method.
 
-#### <a name="method-accel-start"></a> .accelStart()
 
+| Param | Type | Description |
+| --- | --- | --- |
+| options | [<code>InitializationObject</code>](#InitializationObject) | (optional) - Board optional configurations. |
+| callback | <code>function</code> | (optional) - A callback function used to determine if the noble module was able to be started.    This can be very useful on Windows when there is no compatible BLE device found. |
+
+<a name="Ganglion+options"></a>
+
+### ganglion.options : [<code>InitializationObject</code>](#InitializationObject)
+**Kind**: instance property of [<code>Ganglion</code>](#Ganglion)  
+<a name="Ganglion+_accelArray"></a>
+
+### ganglion._accelArray
+Private Properties (keep alphabetical)
+
+**Kind**: instance property of [<code>Ganglion</code>](#Ganglion)  
+<a name="Ganglion+_bled112WriteCharacteristic"></a>
+
+### ganglion._bled112WriteCharacteristic : [<code>BLED112FindInformationFound</code>](#BLED112FindInformationFound)
+**Kind**: instance property of [<code>Ganglion</code>](#Ganglion)  
+<a name="Ganglion+buffer"></a>
+
+### ganglion.buffer
+Public Properties (keep alphabetical)
+
+**Kind**: instance property of [<code>Ganglion</code>](#Ganglion)  
+<a name="Ganglion+accelStart"></a>
+
+### ganglion.accelStart() ⇒ <code>Promise</code>
 Used to enable the accelerometer. Will result in accelerometer packets arriving 10 times a second.
+ Note that the accelerometer is enabled by default.
 
-**Note that the accelerometer is enabled by default.**
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+<a name="Ganglion+accelStop"></a>
 
-**_Returns_** {Promise} - fulfilled once the command was sent to the board.
-
-#### <a name="method-accel-stop"></a> .accelStop()
-
+### ganglion.accelStop() ⇒ <code>Promise</code>
 Used to disable the accelerometer. Prevents accelerometer data packets from arriving.
 
-**Note that the accelerometer is enabled by default.**
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+<a name="Ganglion+autoReconnect"></a>
 
-**_Returns_** {Promise} - fulfilled once the command was sent to the board.
-
-#### <a name="method-auto-reconnect"></a> .autoReconnect()
-
+### ganglion.autoReconnect()
 Used to start a scan if power is on. Useful if a connection is dropped.
 
-#### <a name="method-channel-off"></a> .channelOff(channelNumber)
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+<a name="Ganglion+channelOff"></a>
 
-Turn off a specified channel
+### ganglion.channelOff(channelNumber) ⇒ <code>Promise.&lt;T&gt;</code>
+Send a command to the board to turn a specified channel off
 
-**_channelNumber_**
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+**Author**: AJ Keller (@pushtheworldllc)  
 
-A number (1-4) specifying which channel you want to turn off.
+| Param |
+| --- |
+| channelNumber | 
 
-**_Returns_** {Promise} - fulfilled once the command was sent to the board.
+<a name="Ganglion+channelOn"></a>
 
-#### <a name="method-channel-on"></a> .channelOn(channelNumber)
+### ganglion.channelOn(channelNumber) ⇒ <code>Promise.&lt;T&gt;</code> \| <code>\*</code>
+Send a command to the board to turn a specified channel on
 
-Turn on a specified channel
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+**Author**: AJ Keller (@pushtheworldllc)  
 
-**_channelNumber_**
+| Param |
+| --- |
+| channelNumber | 
 
-A number (1-4) specifying which channel you want to turn on.
+<a name="Ganglion+cleanupEmitters"></a>
 
-**_Returns_** {Promise} - fulfilled once the command was sent to the board.
+### ganglion.cleanupEmitters()
+Used to clean up emitters
 
-#### <a name="method-connect"></a> .connect(portName)
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+<a name="Ganglion+connect"></a>
 
-The essential precursor method to be called initially to establish a ble connection to the OpenBCI ganglion board.
+### ganglion.connect(id) ⇒ <code>Promise</code>
+The essential precursor method to be called initially to establish a
+             ble connection to the OpenBCI ganglion board.
 
-**_id_** {String | Object}
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+**Returns**: <code>Promise</code> - If the board was able to connect.  
+**Author**: AJ Keller (@pushtheworldllc)  
 
-A string `localName` or [`peripheral`](https://github.com/sandeepmistry/noble#peripheral) (from [`noble`](https://github.com/sandeepmistry/noble)) object.
+| Param | Type | Description |
+| --- | --- | --- |
+| id | <code>String</code> \| <code>Object</code> | a string local name or peripheral object |
 
-**_Returns_** {Promise} - fulfilled by a successful connection to the board.
+<a name="Ganglion+destroyNoble"></a>
 
-#### <a name="method-destroy-multi-packet-buffer"></a> .destroyMultiPacketBuffer()
+### ganglion.destroyNoble()
+Destroys the noble!
 
-Destroys the multi packet buffer. The mulit packet buffer holds data from the multi packet messages.
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+<a name="Ganglion+destroyBLED112"></a>
 
-#### <a name="method-disconnect"></a> .disconnect(stopStreaming)
+### ganglion.destroyBLED112()
+Destroys the noble!
 
-Closes the connection to the board. Waits for stop streaming command to be sent if currently streaming.
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+<a name="Ganglion+destroyMultiPacketBuffer"></a>
 
-**_stopStreaming_** {Boolean} (optional)
+### ganglion.destroyMultiPacketBuffer()
+Destroys the multi packet buffer.
 
-`true` if you want to stop streaming before disconnecting. (Default `false`)
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+<a name="Ganglion+disconnect"></a>
 
-**_Returns_** {Promise} - fulfilled by a successful close, rejected otherwise.
+### ganglion.disconnect(stopStreaming) ⇒ <code>Promise</code>
+Closes the connection to the board. Waits for stop streaming command to
+ be sent if currently streaming.
 
-#### <a name="method-get-local-name"></a> .getLocalName()
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+**Returns**: <code>Promise</code> - - fulfilled by a successful close, rejected otherwise.  
+**Author**: AJ Keller (@pushtheworldllc)  
 
-Gets the local name of the attached Ganglion device. This is only valid after [`.connect()`](#method-connect)
+| Param | Type | Description |
+| --- | --- | --- |
+| stopStreaming | <code>Boolean</code> | (optional) - True if you want to stop streaming before disconnecting. |
 
-**_Returns_** {null|String} - The local name.
+<a name="Ganglion+getLocalName"></a>
 
-#### <a name="method-get-mutli-packet-buffer"></a> .getMutliPacketBuffer()
+### ganglion.getLocalName() ⇒ <code>null</code> \| <code>String</code>
+Return the local name of the attached Ganglion device.
 
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+<a name="Ganglion+getMutliPacketBuffer"></a>
+
+### ganglion.getMutliPacketBuffer() ⇒ <code>null</code> \| <code>Buffer</code>
 Get's the multi packet buffer.
 
-**_Returns_** {null|Buffer} - Can be null if no multi packets received.
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+**Returns**: <code>null</code> \| <code>Buffer</code> - - Can be null if no multi packets received.  
+<a name="Ganglion+impedanceStart"></a>
 
-#### <a name="method-impedance-start"></a> .impedanceStart()
-
+### ganglion.impedanceStart() ⇒ <code>global.Promise</code> \| <code>Promise</code>
 Call to start testing impedance.
 
-**_Returns_** {Promise} - that fulfills when all the commands are sent to the board.
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+<a name="Ganglion+impedanceStop"></a>
 
-#### <a name="method-impedance-stop"></a> .impedanceStop()
-
+### ganglion.impedanceStop() ⇒ <code>global.Promise</code> \| <code>Promise</code>
 Call to stop testing impedance.
 
-**_Returns_** {Promise} - that fulfills when all the commands are sent to the board.
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+<a name="Ganglion+initDriver"></a>
 
-#### <a name="method-is-connected"></a> .isConnected()
+### ganglion.initDriver() ⇒ <code>Promise.&lt;any&gt;</code>
+Initialize the drivers
 
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+<a name="Ganglion+isConnected"></a>
+
+### ganglion.isConnected() ⇒ <code>boolean</code>
 Checks if the driver is connected to a board.
 
-**_Returns_** {Boolean} - true if connected
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+**Returns**: <code>boolean</code> - - True if connected.  
+<a name="Ganglion+isNobleReady"></a>
 
-#### <a name="method-is-noble-ready"></a> .isNobleReady()
+### ganglion.isNobleReady() ⇒ <code>boolean</code>
+Checks if bluetooth is powered on.
 
-Checks if bluetooth is powered on. Cannot start scanning till this is true.
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+**Returns**: <code>boolean</code> - - True if bluetooth is powered on.  
+<a name="Ganglion+isSearching"></a>
 
-**_Returns_** {Boolean} - true if bluetooth is powered on.
+### ganglion.isSearching() ⇒ <code>boolean</code>
+Checks if noble is currently scanning.
 
-#### <a name="method-is-searching"></a> .isSearching()
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+**Returns**: <code>boolean</code> - - True if streaming.  
+<a name="Ganglion+isStreaming"></a>
 
-Checks if noble is currently scanning. See [`.searchStart()`](#method-search-start) and [`.searchStop`()`](#method-search-stop`)
-
-**_Returns_** {Boolean} - true if searching.
-
-#### <a name="method-is-streaming"></a> .isStreaming()
-
+### ganglion.isStreaming() ⇒ <code>boolean</code>
 Checks if the board is currently sending samples.
 
-**_Returns_** {Boolean} - true if streaming
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+**Returns**: <code>boolean</code> - - True if streaming.  
+<a name="Ganglion+numberOfChannels"></a>
 
-#### <a name="method-number-of-channels"></a> .numberOfChannels()
+### ganglion.numberOfChannels() ⇒ <code>Number</code>
+This function is used as a convenience method to determine how many
+             channels the current board is using.
 
-Get the current number of channels available to use. (i.e. 4).
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+**Returns**: <code>Number</code> - A number
+Note: This is dependent on if you configured the board correctly on setup options  
+**Author**: AJ Keller (@pushtheworldllc)  
+<a name="Ganglion+printRegisterSettings"></a>
 
-**_Returns_** {Number} - The total number of available channels.
+### ganglion.printRegisterSettings() ⇒ <code>Promise.&lt;T&gt;</code> \| <code>\*</code>
+To print out the register settings to the console
 
-#### <a name="method-print-register-settings"></a> .printRegisterSettings()
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+**Author**: AJ Keller (@pushtheworldllc)  
+<a name="Ganglion+sampleRate"></a>
 
-Prints all register settings for the for board.
+### ganglion.sampleRate() ⇒ <code>Number</code>
+Get the the current sample rate is.
 
-**_Returns_** {Promise} - Fulfilled if the command was sent to board.
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+**Returns**: <code>Number</code> - The sample rate
+Note: This is dependent on if you configured the board correctly on setup options  
+<a name="Ganglion+searchStart"></a>
 
-#### <a name="method-sample-rate"></a> .sampleRate()
+### ganglion.searchStart(&#x60;maxSearchTime&#x60;) ⇒ <code>Promise</code>
+List available peripherals so the user can choose a device when not
+             automatically found.
 
-Get the current sample rate.
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+**Returns**: <code>Promise</code> - - If scan was started  
 
-**Note: This is dependent on if you configured the board correctly on setup options. Specifically as a daisy.**
+| Param | Type | Description |
+| --- | --- | --- |
+| `maxSearchTime` | <code>Number</code> | The amount of time to spend searching. (Default is 20 seconds) |
 
-**_Returns_** {Number} - The current sample rate.
+<a name="Ganglion+searchStop"></a>
 
-#### <a name="method-search-start"></a> .searchStart()
+### ganglion.searchStop() ⇒ <code>global.Promise</code> \| <code>Promise</code>
+Called to end a search.
 
-Call to make `noble` start scanning for Ganglions.
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+<a name="Ganglion+softReset"></a>
 
-**_maxSearchTime_** {Number}
+### ganglion.softReset() ⇒ <code>Promise</code>
+Sends a soft reset command to the board
 
-The amount of time to spend searching. (Default is 20 seconds)
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+**Returns**: <code>Promise</code> - - Fulfilled if the command was sent to board.  
+**Author**: AJ Keller (@pushtheworldllc)  
+<a name="Ganglion+streamStart"></a>
 
-**_Returns_** {Promise} - fulfilled if scan was started.
-
-#### <a name="method-search-stop"></a> .searchStop()
-
-Call to make `noble` stop scanning for Ganglions.
-
-**_Returns_** {Promise} - fulfilled if scan was stopped.
-
-#### <a name="method-soft-reset"></a> .softReset()
-
-Sends a soft reset command to the board.
-
-**_Returns_** {Promise} - Fulfilled if the command was sent to board.
-
-#### <a name="method-stream-start"></a> .streamStart()
-
+### ganglion.streamStart() ⇒ <code>Promise</code>
 Sends a start streaming command to the board.
 
-**Note, You must have called and fulfilled [`.connect()`](#method-connect) AND observed a `'ready'` emitter before calling this method.**
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+**Returns**: <code>Promise</code> - indicating if the signal was able to be sent.
+Note: You must have successfully connected to an OpenBCI board using the connect
+          method. Just because the signal was able to be sent to the board, does not
+          mean the board will start streaming.  
+**Author**: AJ Keller (@pushtheworldllc)  
+<a name="Ganglion+streamStop"></a>
 
-**_Returns_** {Promise} - fulfilled if the command was sent.
-
-#### <a name="method-stream-stop"></a> .streamStop()
-
+### ganglion.streamStop() ⇒ <code>Promise</code>
 Sends a stop streaming command to the board.
 
-**Note, You must have called and fulfilled [`.connect()`](#method-connect) AND observed a `'ready'` emitter before calling this method.**
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+**Returns**: <code>Promise</code> - indicating if the signal was able to be sent.
+Note: You must have successfully connected to an OpenBCI board using the connect
+          method. Just because the signal was able to be sent to the board, does not
+          mean the board stopped streaming.  
+**Author**: AJ Keller (@pushtheworldllc)  
+<a name="Ganglion+syntheticEnable"></a>
 
-**_Returns_** {Promise} - fulfilled if the command was sent.
-
-#### <a name="method-synthetic-enable"></a> .syntheticEnable()
-
+### ganglion.syntheticEnable() ⇒ <code>Promise</code>
 Puts the board in synthetic data generation mode. Must call streamStart still.
 
-**_Returns_** {Promise} - fulfilled if the command was sent.
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+**Returns**: <code>Promise</code> - indicating if the signal was able to be sent.  
+**Author**: AJ Keller (@pushtheworldllc)  
+<a name="Ganglion+syntheticDisable"></a>
 
-#### <a name="method-synthetic-disable"></a> .syntheticDisable()
+### ganglion.syntheticDisable() ⇒ <code>Promise</code>
+Takes the board out of synthetic data generation mode. Must call streamStart still.
 
-Puts the board in synthetic data generation mode. Must call streamStart still.
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+**Returns**: <code>Promise</code> - - fulfilled if the command was sent.  
+**Author**: AJ Keller (@pushtheworldllc)  
+<a name="Ganglion+write"></a>
 
-**_Returns_** {Promise} - Indicating if the command was sent.
-
-#### <a name="method-write"></a> .write(data)
-
+### ganglion.write(data) ⇒ <code>Promise</code>
 Used to send data to the board.
 
-**_data_** {Array | Buffer | Number | String}
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+**Returns**: <code>Promise</code> - - fulfilled if command was able to be sent  
+**Author**: AJ Keller (@pushtheworldllc)  
 
-The data to write out.
-
-**_Returns_** {Promise} - fulfilled if command was able to be sent.
+| Param | Type | Description |
+| --- | --- | --- |
+| data | <code>Array</code> \| <code>Buffer</code> \| <code>Number</code> \| <code>String</code> | The data to write out |
 
 **Example**
 
@@ -462,6 +608,214 @@ ourBoard.write('a');
 ourBoard.write('c');
 ourBoard.write('o');
 ```
+
+<a name="Ganglion+_bled112WriteAndDrain"></a>
+
+### ganglion._bled112WriteAndDrain(data) ⇒ <code>Promise</code>
+Should be used to send data to the board
+
+**Kind**: instance method of [<code>Ganglion</code>](#Ganglion)  
+**Returns**: <code>Promise</code> - if signal was able to be sent  
+**Author**: AJ Keller (@pushtheworldllc)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| data | <code>Buffer</code> \| <code>Buffer2</code> | The data to write out |
+
+<a name="Ganglion..o"></a>
+
+### Ganglion~o
+Configuring Options
+
+**Kind**: inner property of [<code>Ganglion</code>](#Ganglion)  
+<a name="kOBCIBLED112ParsingConnectDirect"></a>
+
+## kOBCIBLED112ParsingConnectDirect
+Used in parsing incoming serial data
+
+**Kind**: global constant  
+<a name="InitializationObject"></a>
+
+## InitializationObject : <code>Object</code>
+Board optional configurations.
+
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| bled112 | <code>Boolean</code> | Whether to use bled112 as bluetooth driver or default to first available. (Default `false`) |
+| debug | <code>Boolean</code> | Print out a raw dump of bytes sent and received. (Default `false`) |
+| driverAutoInit | <code>Boolean</code> | Used to auto start either noble or the bled112 drivers (Default `true`) |
+| nobleAutoStart | <code>Boolean</code> | Automatically initialize `noble`. Subscribes to blue tooth state changes and such.           (Default `true`) |
+| nobleScanOnPowerOn | <code>Boolean</code> | Start scanning for Ganglion BLE devices as soon as power turns on.           (Default `true`) |
+| sendCounts | <code>Boolean</code> | Send integer raw counts instead of scaled floats.           (Default `false`) |
+| simulate | <code>Boolean</code> | (IN-OP) Full functionality, just mock data. (Default `false`) |
+| simulatorBoardFailure | <code>Boolean</code> | (IN-OP)  Simulates board communications failure. This occurs when the RFduino on                  the board is not polling the RFduino on the dongle. (Default `false`) |
+| simulatorHasAccelerometer | <code>Boolean</code> | Sets simulator to send packets with accelerometer data. (Default `true`) |
+| simulatorInjectAlpha | <code>Boolean</code> | Inject a 10Hz alpha wave in Channels 1 and 2 (Default `true`) |
+| simulatorInjectLineNoise | <code>String</code> | Injects line noise on channels.          3 Possible Options:              `60Hz` - 60Hz line noise (Default) [America]              `50Hz` - 50Hz line noise [Europe]              `none` - Do not inject line noise. |
+| simulatorSampleRate | <code>Number</code> | The sample rate to use for the simulator. Simulator will set to 125 if                  `simulatorDaisyModuleAttached` is set `true`. However, setting this option overrides that                  setting and this sample rate will be used. (Default is `250`) |
+|  | <code>Boolean</code> | Print out useful debugging events. (Default `false`) |
+
+<a name="BLED112AttributeValue"></a>
+
+## BLED112AttributeValue : <code>Object</code>
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| characteristicHandle | <code>Number</code> |  |
+| characteristicHandleRaw | <code>Buffer</code> | The string of the advertisement data, not the full ad data |
+| connection | <code>Number</code> | The connection the info is from |
+| type | <code>Number</code> | The type, where 0x01 is data? |
+| value | <code>Buffer</code> | The value from device |
+
+<a name="BLED112AttributeWrite"></a>
+
+## BLED112AttributeWrite : <code>Object</code>
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| characteristicHandleRaw | <code>Buffer</code> | Buffer of length 2 for the service number in the att database |
+| connection | <code>Number</code> | Which connection is being used |
+| value | <code>String</code> \| <code>Buffer</code> | The value to send to the device |
+
+<a name="BLEDConnection"></a>
+
+## BLEDConnection : <code>Object</code>
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type |
+| --- | --- |
+| addressType | <code>Number</code> | 
+| bonding | <code>Number</code> | 
+| connection | <code>Number</code> | 
+| connectionInterval | <code>Number</code> | 
+| flags | <code>Number</code> | 
+| latency | <code>Number</code> | 
+| sender | <code>Buffer</code> | 
+| timeout | <code>Number</code> | 
+
+<a name="BLED112FindInformationFound"></a>
+
+## BLED112FindInformationFound : <code>Object</code>
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| characteristicHandle | <code>Number</code> |  |
+| characteristicHandleRaw | <code>Buffer</code> | The string of the advertisement data, not the full ad data |
+| connection | <code>Number</code> | The entire end of ad data |
+| type | <code>Number</code> | The type, where 0x02 is short uuid and 0x10 is long, it's hex for length |
+| uuid | <code>Buffer</code> |  |
+
+<a name="BLED112GapConnectDirect"></a>
+
+## BLED112GapConnectDirect : <code>Object</code>
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type |
+| --- | --- |
+| connection | <code>Number</code> | 
+| result | <code>Buffer</code> | 
+
+<a name="BLED112GroupService"></a>
+
+## BLED112GroupService : <code>Object</code>
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type |
+| --- | --- |
+| connection | <code>number</code> | 
+| end | <code>number</code> | 
+| endRaw | <code>Buffer</code> | 
+| start | <code>number</code> | 
+| startRaw | <code>Buffer</code> | 
+| uuid | <code>Buffer</code> | 
+
+<a name="BLED112ParseRawAttributeValue"></a>
+
+## BLED112ParseRawAttributeValue : <code>Object</code>
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| buffer | <code>Buffer</code> \| <code>Buffer2</code> | The raw data buffer to parse |
+| ignore | <code>Number</code> | The position to ignore in the `word` |
+| length | <code>Number</code> | The length of raw you want to extract |
+| lengthPosition | <code>Number</code> | The position of the byte that stores the length of the value |
+| verify | <code>Object</code> |  |
+| verify.comparePosition | <code>Number</code> | The value to compare with `position` |
+| verify.difference | <code>Number</code> | The difference between `position` and `comparePostion` |
+| verify.ignore | <code>Number</code> | The difference between `position` and `comparePostion` |
+| verify.position | <code>Number</code> | The position of the verification byte |
+| word | <code>Buffer</code> \| <code>Buffer2</code> | The 4 byte word to search for, ignore byte in postion 1 |
+
+<a name="BLED112ParseRawHeadTail"></a>
+
+## BLED112ParseRawHeadTail : <code>Object</code>
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| buffer | <code>Buffer</code> \| <code>Buffer2</code> | The raw data buffer to parse |
+| head | <code>Number</code> | The head byte to search for |
+| length | <code>Number</code> | The length of raw you want to extract |
+| tail | <code>Number</code> | The tail byte to search for |
+
+<a name="BLED112ParseRawWord"></a>
+
+## BLED112ParseRawWord : <code>Object</code>
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| buffer | <code>Buffer</code> \| <code>Buffer2</code> | The raw data buffer to parse |
+| length | <code>Number</code> | The length of raw you want to extract |
+| verify | <code>Object</code> |  |
+| verify.position | <code>Number</code> | The position of the verification byte |
+| verify.value | <code>Number</code> | The value of the verification byte |
+| word | <code>Buffer</code> \| <code>Buffer2</code> | The 4 byte word to search for |
+
+<a name="BLED112Peripheral"></a>
+
+## BLED112Peripheral : <code>Object</code>
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| addressType | <code>Number</code> |  |
+| advertisement | <code>Object</code> |  |
+| advertisement.localName | <code>String</code> | Same as `advertisementDataString` but mimics what noble outputs |
+| advertisementDataString | <code>String</code> | The string of the advertisement data, not the full ad data |
+| advertisementDataRaw | <code>Buffer</code> \| <code>Buffer2</code> | The entire end of ad data |
+| bond | <code>Number</code> |  |
+| packetType | <code>Number</code> | - |
+| rssi | <code>Number</code> | The RSSI which stands for receive signal strength indicator and is in db so it's negative,  and lower the better. |
+| sender | <code>Buffer</code> \| <code>Buffer2</code> | The mac address |
+
+<a name="BLED112RspGroupType"></a>
+
+## BLED112RspGroupType : <code>Object</code>
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type |
+| --- | --- |
+| connection | <code>Number</code> | 
+| result | <code>Buffer</code> | 
 
 ### <a name="event"></a> Events:
 
