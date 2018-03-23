@@ -484,13 +484,41 @@ Ganglion.prototype.initDriver = function (portName) {
     try {
       if (this.options.bled112) {
         SerialPort = require('serialport');
-        this._bled112Init(portName)
-          .then(() => {
-            resolve();
-          })
-          .catch(reason => {
-            reject(reason);
+        if (portName) {
+          this._bled112Init(portName)
+            .then(() => {
+              resolve();
+            })
+            .catch(reason => {
+              reject(reason);
+            });
+        } else {
+          SerialPort.list((err, ports) => {
+            if (err) {
+              reject(err);
+            } else {
+              const portPre = /\/dev\/tty.usbmodem/;
+              let bledPort = null;
+              for (let port of ports) {
+                if (port.comName.match(portPre) !== null) {
+                  bledPort = port;
+                  break;
+                }
+              }
+              if (bledPort) {
+                this._bled112Init(bledPort.comName)
+                  .then(() => {
+                    resolve();
+                  })
+                  .catch(reason => {
+                    reject(reason);
+                  });
+              } else {
+                reject(Error('No BLED112 port found'));
+              }
+            }
           });
+        }
       } else {
         noble = require('noble');
         if (this.options.nobleAutoStart) this._nobleInit(); // It get's the noble going
