@@ -1,3 +1,9 @@
+# v1.1.6
+
+### Bug Fixes
+
+* BLED112 port name can change so made dynamic port finding routine and error message when no mattching driver found.
+
 # v1.1.5
 
 Chore bump noble version to v1.9.0 for macOS High Sierra 
