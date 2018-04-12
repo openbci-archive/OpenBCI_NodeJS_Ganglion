@@ -170,9 +170,8 @@ function Ganglion (options, callback) {
   };
   this._bled112ParsingDiscover = {
     buffer: Buffer.from([]),
-    head: 0x80,
     length: 30,
-    tail: 0x61
+    word: bleEvtGapScanResponse
   };
   this._bled112ParsingFindInfoLong = {
     buffer: Buffer.from([]),
@@ -2162,6 +2161,8 @@ Ganglion.prototype._bled112ParseForRaws = function (o) {
         } else {
           rawFound = true;
         }
+      // } else if (o.buffer[parsePosition] === 0x80 && o.buffer[parsePosition + 1] === 0x1A && o.buffer[parsePosition] === 0x06) {
+
       }
     }
     if (rawFound) {

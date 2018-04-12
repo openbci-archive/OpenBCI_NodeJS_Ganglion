@@ -1,3 +1,9 @@
+# v1.1.7
+
+### Bug Fixes
+
+* BLED112 could not find ganglions with different names :(
+
 # v1.1.6
 
 ### Bug Fixes
