@@ -2161,8 +2161,6 @@ Ganglion.prototype._bled112ParseForRaws = function (o) {
         } else {
           rawFound = true;
         }
-      // } else if (o.buffer[parsePosition] === 0x80 && o.buffer[parsePosition + 1] === 0x1A && o.buffer[parsePosition] === 0x06) {
-
       }
     }
     if (rawFound) {
