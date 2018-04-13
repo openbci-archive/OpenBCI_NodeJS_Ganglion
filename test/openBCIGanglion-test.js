@@ -1038,6 +1038,21 @@ describe('#ganglion', function () {
       // Should keep other stuff in the buffer
       expect(ganglion.buffer).to.deep.equal(Buffer.concat([junk, halfScanResponse2]));
     });
+    it('should be able to discover a peripheral', function () {
+      const junk = Buffer.from([0x06, 0x00, 0xbd, 0x00, 0xd9, 0x66, 0xce, 0x00, 0x53, 0xe9, 0x01, 0xff, 0x0f, 0x0e, 0x09, 0x47]);
+      const rawBuf = new Buffer([0x80, 0x1A, 0x06, 0x00, 0xCD, 0x00, 0xD9, 0x66, 0xCE, 0x00, 0x53, 0xE9, 0x01, 0xFF, 0x0F, 0x0E, 0x09, 0x47, 0x61, 0x6E, 0x67, 0x6C, 0x69, 0x6F, 0x6E, 0x2D, 0x35, 0x34, 0x63, 0x61]);
+
+      const inputData = Buffer.concat([junk, rawBuf]);
+
+      // Set driver to look for groups
+      ganglion._bled112ParseForDiscover();
+      ganglion._bled112ProcessBytes(inputData);
+
+      expect(funcStub.args[0][0]).to.deep.equal(rawBuf);
+      expect(funcStub.callCount).to.equal(1);
+      // Should keep other stuff in the buffer
+      expect(ganglion.buffer).to.deep.equal(Buffer.concat([junk]));
+    });
   });
   describe('#_bled112RspFindInformationFound', function () {
     it('should be able to get the connection and result', function () {

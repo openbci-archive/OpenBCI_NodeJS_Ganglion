@@ -170,9 +170,8 @@ function Ganglion (options, callback) {
   };
   this._bled112ParsingDiscover = {
     buffer: Buffer.from([]),
-    head: 0x80,
     length: 30,
-    tail: 0x61
+    word: bleEvtGapScanResponse
   };
   this._bled112ParsingFindInfoLong = {
     buffer: Buffer.from([]),
