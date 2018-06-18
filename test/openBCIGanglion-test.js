@@ -63,6 +63,34 @@ describe('#ganglion', function () {
     // Make writeable
 
   });
+  describe('#_processBytes', function () {
+    it('should be able to get multi byte messages', function (done) {
+      const rawBufMulti = Buffer.from([0xCE, 0x61, 0x63, 0x63, 0x65, 0x6C, 0x65, 0x72, 0x6F, 0x6D, 0x65, 0x74, 0x65, 0x72, 0x20, 0x65, 0x6E, 0x61, 0x62, 0x6C]);
+      const rawBufStop = Buffer.from([0xCF, 0x65, 0x64, 0x0A]);
+      const expectedOutput = 'accelerometer enabled';
+
+      ganglion.once('message', (message) => {
+        expect(message).to.equal(expectedOutput);
+        done();
+      });
+
+      ganglion._processBytes(Buffer.concat([rawBufMulti, rawBufStop]));
+
+    });
+    it('should be able to get multi byte messages', function (done) {
+      const rawBuf = Buffer.from([0xCF, 0x65, 0x64, 0x0A]);
+
+      const expectedOutput = 'ed';
+
+      ganglion.once('message', (message) => {
+        expect(message).to.equal(expectedOutput);
+        done();
+      });
+
+      ganglion._processBytes(rawBuf);
+
+    });
+  });
   describe('#_bled112AttributeValue', function () {
     it('should be able to get the connection, atthandle type and value for data', function () {
       const rawBuf = Buffer.from([0x80, 0x19, 0x04, 0x05, 0x00, 0x19, 0x00, 0x01, 0x14, 0x6A, 0x00, 0x97, 0xC0, 0x2A, 0x30, 0x01, 0x38, 0x01, 0x59, 0x60, 0x17, 0x64, 0x03, 0x83, 0x00, 0x78, 0x30, 0x02, 0xB2]);
