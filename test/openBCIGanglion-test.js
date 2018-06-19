@@ -76,7 +76,6 @@ describe('#ganglion', function () {
 
       ganglion._processBytes(rawBufMulti);
       ganglion._processBytes(rawBufStop);
-
     });
     it('should be able to get multi byte messages', function (done) {
       const rawBuf = Buffer.from([0xCF, 0x65, 0x64, 0x0A]);
@@ -89,7 +88,6 @@ describe('#ganglion', function () {
       });
 
       ganglion._processBytes(rawBuf);
-
     });
   });
   describe('#_bled112AttributeValue', function () {
