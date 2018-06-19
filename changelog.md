@@ -2,7 +2,7 @@
 
 ### Bug Fixes
 
-* Utiltiies function crashed when trying to parse multi packet message from ganglion
+* Utilities function crashed when trying to parse multi packet message from ganglion
 
 # v1.1.7
 
