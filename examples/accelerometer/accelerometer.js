@@ -43,9 +43,9 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
     if (accel) {
       setTimeout(() => {
         ganglion.accelStart()
-        // .then(() => {
-        //   return ganglion.streamStart();
-        // })
+          .then(() => {
+            return ganglion.streamStart();
+          })
           .catch(errorFunc);
 
       }, 250);

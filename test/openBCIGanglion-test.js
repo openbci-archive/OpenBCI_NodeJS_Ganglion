@@ -67,20 +67,21 @@ describe('#ganglion', function () {
     it('should be able to get multi byte messages', function (done) {
       const rawBufMulti = Buffer.from([0xCE, 0x61, 0x63, 0x63, 0x65, 0x6C, 0x65, 0x72, 0x6F, 0x6D, 0x65, 0x74, 0x65, 0x72, 0x20, 0x65, 0x6E, 0x61, 0x62, 0x6C]);
       const rawBufStop = Buffer.from([0xCF, 0x65, 0x64, 0x0A]);
-      const expectedOutput = 'accelerometer enabled';
+      const expectedOutput = 'accelerometer enabled\n';
 
       ganglion.once('message', (message) => {
         expect(message).to.equal(expectedOutput);
         done();
       });
 
-      ganglion._processBytes(Buffer.concat([rawBufMulti, rawBufStop]));
+      ganglion._processBytes(rawBufMulti);
+      ganglion._processBytes(rawBufStop);
 
     });
     it('should be able to get multi byte messages', function (done) {
       const rawBuf = Buffer.from([0xCF, 0x65, 0x64, 0x0A]);
 
-      const expectedOutput = 'ed';
+      const expectedOutput = 'ed\n';
 
       ganglion.once('message', (message) => {
         expect(message).to.equal(expectedOutput);

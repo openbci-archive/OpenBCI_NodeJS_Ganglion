@@ -1,3 +1,9 @@
+# v1.1.8
+
+### Bug Fixes
+
+* Utiltiies function crashed when trying to parse multi packet message from ganglion
+
 # v1.1.7
 
 ### Bug Fixes
