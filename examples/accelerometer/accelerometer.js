@@ -2,8 +2,9 @@ const Ganglion = require('../../openBCIGanglion');
 const k = require('openbci-utilities/dist/constants');
 const verbose = true;
 let ganglion = new Ganglion({
-  debug: true,
-  verbose: verbose
+  debug: false,
+  verbose: verbose,
+  sendCounts: false
 }, (error) => {
   if (error) {
     console.log(error);
@@ -23,9 +24,9 @@ const accel = true;
 ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
   ganglion.searchStop().catch(errorFunc);
 
-  // ganglion.on('sample', (sample) => {
-  //   console.log(sample.sampleNumber);
-  // });
+  ganglion.on('sample', (sample) => {
+    // console.log(sample.sampleNumber);
+  });
 
   ganglion.on('close', () => {
     console.log('close event');
@@ -41,13 +42,11 @@ ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
 
   ganglion.once('ready', () => {
     if (accel) {
-      setTimeout(() => {
-        ganglion.accelStart()
-          .then(() => {
-            return ganglion.streamStart();
-          })
-          .catch(errorFunc);
-      }, 250);
+      ganglion.accelStart()
+        .then(() => {
+          return ganglion.streamStart();
+        })
+        .catch(errorFunc);
     } else {
       ganglion.streamStart().catch(errorFunc);
     }
