@@ -1027,6 +1027,18 @@ Ganglion.prototype._processBytes = function (data) {
     if (Array.isArray(obj)) {
       obj.forEach(sample => {
         this.emit(k.OBCIEmitterSample, sample);
+        if (sample.hasOwnProperty('accelData')) {
+          if (sample.accelData.length === 3) {
+            this.emit('accelerometer', sample.accelData);
+          } else {
+            delete sample.accelData;
+          }
+        }
+        if (sample.hasOwnProperty('accelDataCounts')) {
+          if (sample.accelDataCounts.length === 3) {
+            this.emit('accelerometer', sample.accelDataCounts);
+          }
+        }
       });
     } else if (obj.hasOwnProperty('message')) {
       this.emit(k.OBCIEmitterMessage, obj.message);

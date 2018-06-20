@@ -1,3 +1,9 @@
+# v1.1.9
+
+### Bug Fixes
+
+* Fixed bug where accelerometer data was not emitted.
+
 # v1.1.8
 
 ### Bug Fixes
