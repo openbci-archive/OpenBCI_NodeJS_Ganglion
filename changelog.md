@@ -1,3 +1,9 @@
+# v2.0.0
+
+### Breaking change
+
+* No longer using the CSR dongle with zadig on windows
+
 # v1.1.9
 
 ### Bug Fixes

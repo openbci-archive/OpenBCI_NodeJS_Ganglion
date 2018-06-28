@@ -519,7 +519,11 @@ Ganglion.prototype.initDriver = function (portName) {
           });
         }
       } else {
-        noble = require('noble');
+        if (process.platform === "win32") {
+          noble = require('noble-winrt');
+        } else {
+          noble = require('noble');
+        }
         if (this.options.nobleAutoStart) this._nobleInit(); // It get's the noble going
         resolve();
       }
