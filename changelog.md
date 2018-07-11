@@ -1,5 +1,9 @@
 # v2.0.0
 
+### Improvements
+
+* Update serialport to v6.2.1
+
 ### Breaking change
 
 * No longer using the CSR dongle with zadig on windows

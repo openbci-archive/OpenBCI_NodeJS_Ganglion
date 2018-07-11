@@ -26,7 +26,7 @@
     "noble": "1.9.1",
     "noble-winrt": "^0.1.1",
     "openbci-utilities": "^0.3.6",
-    "serialport": "^6.1.1"
+    "serialport": "^6.2.1"
   },
   "directories": {
     "test": "test"
@@ -55,7 +55,7 @@
   },
   "homepage": "https://github.com/openbci/openbci_nodejs_ganglion#readme",
   "engines": {
-    "node": "6 | 7 | 8 | 9"
+    "node": ">=6 <=9"
   },
   "semistandard": {
     "globals": [
