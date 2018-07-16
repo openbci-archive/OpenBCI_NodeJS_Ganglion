@@ -499,9 +499,16 @@ Ganglion.prototype.initDriver = function (portName) {
               const portPre = /\/dev\/tty.usbmodem/;
               let bledPort = null;
               for (let port of ports) {
-                if (port.comName.match(portPre) !== null) {
-                  bledPort = port;
-                  break;
+                if (process.platform === "win32") {
+                  if (port.manufacturer === "Bluegiga") {
+                    bledPort = port;
+                    break;
+                  }  
+                } else {
+                  if (port.comName.match(portPre) !== null) {
+                    bledPort = port;
+                    break;
+                  }  
                 }
               }
               if (bledPort) {

@@ -1,3 +1,9 @@
+# v1.1.10
+
+### Improvements
+
+* Can now use BLED112 with Windows
+
 # v1.1.9
 
 ### Bug Fixes

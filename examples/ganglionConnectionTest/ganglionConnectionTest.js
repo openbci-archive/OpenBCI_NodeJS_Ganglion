@@ -181,6 +181,7 @@ function exitHandler (options, err) {
     if (accel) {
       ganglion.accelStop().catch(console.log);
     }
+    process.exit();
     // ganglion.manualDisconnect = true;
     // ganglion.disconnect(true).catch(console.log);
   }
