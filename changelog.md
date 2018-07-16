@@ -1,12 +1,8 @@
-# v2.0.0
+# v1.1.10
 
 ### Improvements
 
-* Update serialport to v6.2.1
-
-### Breaking change
-
-* No longer using the CSR dongle with zadig on windows
+* Can now use BLED112 with Windows
 
 # v1.1.9
 

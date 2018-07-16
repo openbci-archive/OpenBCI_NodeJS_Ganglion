@@ -15,12 +15,13 @@ function errorFunc (err) {
 }
 
 const impedance = false;
-const accel = false;
+const accel = true;
 
 const fullGangFunc = () => {
   console.log(`fullGangFunc`);
   ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
     // UNCOMMENT BELOW FOR DROPPED PACKET CALCULATIONS...
+    console.log("ganglion found");
     let droppedPacketCounter = 0;
     let buf = [];
     let sizeOfBuf = 0;
@@ -73,6 +74,7 @@ const fullGangFunc = () => {
     });
 
     ganglion.once('ready', () => {
+      console.log("Ready");
       if (accel) {
         ganglion.accelStart()
           .then(() => {
@@ -85,13 +87,14 @@ const fullGangFunc = () => {
         ganglion.streamStart().catch(errorFunc);
       }
     });
+    ganglion.connect(peripheral).catch(errorFunc);
 
-    ganglion.searchStop()
-      .then(() => {
-        console.log(`search stopped`);
-        ganglion.connect(peripheral).catch(errorFunc);
-      })
-      .catch(errorFunc);
+    // ganglion.searchStop()
+    //   .then(() => {
+    //     console.log(`search stopped`);
+    //     ganglion.connect(peripheral).catch(errorFunc);
+    //   })
+    //   .catch(errorFunc);
   });
   var startSearchFunc = () => {
     ganglion.searchStart().catch(errorFunc);
@@ -181,6 +184,7 @@ function exitHandler (options, err) {
     if (accel) {
       ganglion.accelStop().catch(console.log);
     }
+    process.exit();
     // ganglion.manualDisconnect = true;
     // ganglion.disconnect(true).catch(console.log);
   }

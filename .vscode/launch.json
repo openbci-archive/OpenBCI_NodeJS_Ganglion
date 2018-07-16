@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch BLED112 Program",
+            "program": "${workspaceFolder}/examples/ganglionBLED112/ganglionBLED112.js"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch Connect Program",
+            "program": "${workspaceFolder}/examples/ganglionConnectionTest/ganglionConnectionTest.js"
+        }
+    ]
+}
