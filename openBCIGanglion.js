@@ -500,7 +500,7 @@ Ganglion.prototype.initDriver = function (portName) {
               let bledPort = null;
               for (let port of ports) {
                 if (process.platform === "win32") {
-                  if (port.manufacturer === "Bluegiga") {
+                  if (port.pnpId === "USB\\VID_2458&PID_0001\\1") {
                     bledPort = port;
                     break;
                   }  

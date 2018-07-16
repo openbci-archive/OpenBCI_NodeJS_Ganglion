@@ -1,3 +1,9 @@
+# v1.1.11
+
+### Bug Fixes
+
+* Fixed bug where manufacturer name changed for BLED112, swtiched to vendor 
+
 # v1.1.10
 
 ### Improvements
