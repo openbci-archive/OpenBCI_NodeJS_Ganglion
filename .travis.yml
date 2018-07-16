@@ -1,18 +1,9 @@
 language: node_js
 node_js:
-  - "4.2.3"
-  - "5.11.0"
-  - "6.0"
-  - "6.1"
-  - "6.2"
-  - "6.3"
-  - "6.4"
-  - "6.5"
-  - "6.6"
-  - "6.7"
-  - "6.8"
-  - "6.9"
-
+  - "6"
+  - "7"
+  - "8"
+  - "9"
 before_install:
 # before_install code came from here: https://github.com/node-inspector/node-inspector/issues/776
   - sudo apt-get install python-software-properties
@@ -29,4 +20,5 @@ before_install:
 install:
   - npm install --all
 script:
+  - npm run test-lint
   - npm run test-cov

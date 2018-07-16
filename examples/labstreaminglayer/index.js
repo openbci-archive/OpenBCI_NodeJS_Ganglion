@@ -1,10 +1,13 @@
 const Ganglion = require('../../openBCIGanglion');
-const k = require('openbci-utilities/dist/constants');
-const verbose = true;
+var portPub = 'tcp://127.0.0.1:3004';
+var zmq = require('zeromq');
+var socket = zmq.socket('pair');
+var verbose = false;
+
 let ganglion = new Ganglion({
-  debug: true,
+  nobleAutoStart: true,
   sendCounts: true,
-  verbose: verbose
+  verbose: true
 }, (error) => {
   if (error) {
     console.log(error);
@@ -15,70 +18,25 @@ let ganglion = new Ganglion({
   }
 });
 
-function errorFunc (err) {
-  throw err;
-}
-
-const impedance = false;
-const accel = false;
-
-ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
-  ganglion.searchStop().catch(errorFunc);
-
+ganglion.once('ganglionFound', (peripheral) => {
+  ganglion.searchStop();
   ganglion.on('sample', (sample) => {
-    /** Work with sample */
-    console.log(sample.sampleNumber);
+    sendToPython({
+      action: 'process',
+      command: 'sample',
+      message: sample
+    });
   });
-
-  ganglion.on('close', () => {
-    console.log('close event');
-  });
-
-  ganglion.on('droppedPacket', (data) => {
-    console.log('droppedPacket:', data);
-  });
-
-  ganglion.on('message', (message) => {
-    console.log('message: ', message.toString());
-  });
-
-  let lastVal = 0;
-  ganglion.on('accelerometer', (accelData) => {
-    // Use accel array [0, 0, 0]
-    if (accelData[2] - lastVal > 1) {
-      console.log(`Diff: ${accelData[2] - lastVal}`);
-    }
-    lastVal = accelData[2];
-    // console.log(`counter: ${accelData[2]}`);
-  });
-
-  ganglion.on('impedance', (impedanceObj) => {
-    console.log(`channel ${impedanceObj.channelNumber} has impedance ${impedanceObj.impedanceValue}`);
-  });
-
   ganglion.once('ready', () => {
-      // if (accel) {
-      //     ganglion.accelStart()
-      //         .then(() => {
-      //             return ganglion.streamStart();
-      //         })
-      //         .catch(errorFunc);
-      // } else if (impedance) {
-      //     ganglion.impedanceStart().catch(errorFunc);
-      // } else {
-      //
-      // }
-    ganglion.streamStart().catch(errorFunc);
-    console.log('ready');
+    ganglion.streamStart();
   });
-
-  ganglion.connect('Ganglion-58f3').catch(errorFunc);
+  ganglion.connect(peripheral);
 });
 
+// ganglion.searchStart();
 function exitHandler (options, err) {
   if (options.cleanup) {
     if (verbose) console.log('clean');
-    // console.log(connectedPeripheral)
     ganglion.manualDisconnect = true;
     ganglion.disconnect();
     ganglion.removeAllListeners('droppedPacket');
@@ -95,20 +53,34 @@ function exitHandler (options, err) {
   if (err) console.log(err.stack);
   if (options.exit) {
     if (verbose) console.log('exit');
-    if (impedance) {
-      ganglion.impedanceStop().catch(console.log);
-    }
     if (ganglion.isSearching()) {
       ganglion.searchStop().catch(console.log);
-    }
-    if (accel) {
-      ganglion.accelStop().catch(console.log);
     }
     ganglion.manualDisconnect = true;
     ganglion.disconnect(true).catch(console.log);
     process.exit(0);
   }
 }
+
+// ZMQ
+socket.bind(portPub, function (err) {
+  if (err) throw err;
+  console.log(`bound to ${portPub}`);
+});
+
+/**
+ * Used to send a message to the Python process.
+ * @param  {Object} interProcessObject The standard inter-process object.
+ * @return {None}
+ */
+var sendToPython = (interProcessObject, verbose) => {
+  if (verbose) {
+    console.log(`<- out ${JSON.stringify(interProcessObject)}`);
+  }
+  if (socket) {
+    socket.send(JSON.stringify(interProcessObject));
+  }
+};
 
 if (process.platform === 'win32') {
   const rl = require('readline').createInterface({

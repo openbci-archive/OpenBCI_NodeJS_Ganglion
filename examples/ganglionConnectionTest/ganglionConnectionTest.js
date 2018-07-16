@@ -1,8 +1,9 @@
-const Ganglion = require('../../index').Ganglion;
-const k = require('../../openBCIConstants');
+const Ganglion = require('../../openBCIGanglion');
+const k = require('openbci-utilities/dist/constants');
 const verbose = true;
-var ganglion = new Ganglion({
-  // debug: true,
+const DO_PACKET_CALCULATIONS = true;
+let ganglion = new Ganglion({
+  debug: false,
   sendCounts: true,
   verbose: verbose,
   nobleScanOnPowerOn: false,
@@ -19,26 +20,49 @@ const accel = false;
 const fullGangFunc = () => {
   console.log(`fullGangFunc`);
   ganglion.once(k.OBCIEmitterGanglionFound, (peripheral) => {
-    console.log('woo');
+    // UNCOMMENT BELOW FOR DROPPED PACKET CALCULATIONS...
     let droppedPacketCounter = 0;
-    let secondCounter = 0;
     let buf = [];
     let sizeOfBuf = 0;
     ganglion.on('sample', (sample) => {
       /** Work with sample */
-      console.log(sample.sampleNumber);
+      if (sample.valid) {
+        console.log(sample.sampleNumber);
+        // UNCOMMENT BELOW FOR DROPPED PACKET CALCULATIONS...
+        if (DO_PACKET_CALCULATIONS) {
+          if (sample.sampleNumber === 0) {
+            buf.push(droppedPacketCounter);
+            sizeOfBuf++;
+            droppedPacketCounter = 0;
+            if (sizeOfBuf >= 60) {
+              let sum = 0;
+              for (let i = 0; i < buf.length; i++) {
+                sum += parseInt(buf[i], 10);
+              }
+              const percentDropped = sum / 6000 * 100;
+              console.log(`dropped packet rate: ${sum} - percent dropped: %${percentDropped.toFixed(2)}`);
+              buf.shift();
+            } else {
+              console.log(`time till average rate starts ${60 - sizeOfBuf}`);
+            }
+          }
+        }
+      } else {
+        console.log('err');
+      }
     });
 
     ganglion.on('droppedPacket', (data) => {
       console.log('droppedPacket:', data);
-      droppedPacketCounter++;
+      if (DO_PACKET_CALCULATIONS) {
+        droppedPacketCounter++;
+      }
     });
 
     ganglion.on('message', (message) => {
       // console.log('message: ', message.toString());
     });
 
-    let lastVal = 0;
     ganglion.on('accelerometer', (accelData) => {
       // Use accel array [0, 0, 0]
       // console.log(`counter: ${accelData[2]}`);
@@ -68,21 +92,19 @@ const fullGangFunc = () => {
         ganglion.connect(peripheral).catch(errorFunc);
       })
       .catch(errorFunc);
-
   });
   var startSearchFunc = () => {
     ganglion.searchStart().catch(errorFunc);
-  }
+  };
   ganglion.once(k.OBCIEmitterBlePoweredUp, startSearchFunc);
   if (ganglion.isNobleReady()) {
     console.log(`noble is ready so starting scan`);
     ganglion.removeListener(k.OBCIEmitterBlePoweredUp, startSearchFunc);
-    startSearchFunc()
+    startSearchFunc();
   } else {
     console.log(`noble is NOT ready so waiting starting scan`);
   }
-}
-
+};
 
 var stopTimeout;
 var index = 0;
@@ -90,7 +112,7 @@ var startFunc = () => {
   console.log(`starting ${index}`);
   fullGangFunc();
   stopTimeout = setTimeout(stopFunc, 10000);
-}
+};
 
 var stopFunc = () => {
   console.log(`disconnecting ${index}`);
@@ -113,7 +135,6 @@ var stopFunc = () => {
         }
       })
       .catch(killFunc);
-
   } else {
     console.log(`you were never connected on index ${index}`);
     if (index === 1) {
@@ -123,12 +144,12 @@ var stopFunc = () => {
       startFunc();
     }
   }
-}
+};
 
 var killFunc = (msg) => {
   console.log(`killFunc msg: ${msg}`);
   process.exit(0);
-}
+};
 
 startFunc();
 
@@ -160,19 +181,20 @@ function exitHandler (options, err) {
     if (accel) {
       ganglion.accelStop().catch(console.log);
     }
+    process.exit();
     // ganglion.manualDisconnect = true;
     // ganglion.disconnect(true).catch(console.log);
   }
 }
 
-if (process.platform === "win32") {
-  const rl = require("readline").createInterface({
+if (process.platform === 'win32') {
+  const rl = require('readline').createInterface({
     input: process.stdin,
     output: process.stdout
   });
 
-  rl.on("SIGINT", function () {
-    process.emit("SIGINT");
+  rl.on('SIGINT', function () {
+    process.emit('SIGINT');
   });
 }
 
