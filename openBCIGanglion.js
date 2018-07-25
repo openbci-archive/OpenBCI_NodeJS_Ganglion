@@ -504,6 +504,11 @@ Ganglion.prototype.initDriver = function (portName) {
                     bledPort = port;
                     break;
                   }  
+                } else if (process.platform === "linux") {
+                  if (port.pnpId === "usb-Bluegiga_Low_Energy_Dongle_1-if00") {
+                    bledPort = port;
+                    break;
+                  } 
                 } else {
                   if (port.comName.match(portPre) !== null) {
                     bledPort = port;

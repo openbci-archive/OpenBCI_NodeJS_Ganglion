@@ -1,3 +1,9 @@
+# v1.1.12
+
+### Bug Fixes
+
+* Fixed bug for linux support for BLED112 
+
 # v1.1.11
 
 ### Bug Fixes
