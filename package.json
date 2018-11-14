@@ -9,7 +9,7 @@
     "server": "node examples/ganglionServer/ganglionServer.js",
     "test": "semistandard | snazzy && mocha test",
     "test-cov": "istanbul cover ./node_modules/mocha/bin/_mocha -- -R spec && codecov",
-    "test-lint": "semistandard | snazzy"
+    "test-lint": "prettier"
   },
   "keywords": [
     "openbci",
@@ -39,6 +39,7 @@
     "istanbul": "^0.4.4",
     "jsdoc-to-markdown": "^4.0.1",
     "mocha": "^3.0.2",
+    "prettier": "^1.15.2",
     "sandboxed-module": "^2.0.3",
     "semistandard": "^9.0.0",
     "sinon": "^4.1.3",
