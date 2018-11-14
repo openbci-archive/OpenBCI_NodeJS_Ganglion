@@ -7,7 +7,7 @@
     "connect-test": "node examples/ganglionConnectionTest/ganglionConnectionTest.js",
     "docs": "jsdoc2md openBCIGanglion.js",
     "server": "node examples/ganglionServer/ganglionServer.js",
-    "test": "semistandard | snazzy && mocha test",
+    "test": "mocha test",
     "test-cov": "istanbul cover ./node_modules/mocha/bin/_mocha -- -R spec && codecov",
     "test-lint": "prettier"
   },
@@ -41,7 +41,6 @@
     "mocha": "^3.0.2",
     "prettier": "^1.15.2",
     "sandboxed-module": "^2.0.3",
-    "semistandard": "^9.0.0",
     "sinon": "^4.1.3",
     "sinon-chai": "^2.14.0",
     "snazzy": "^5.0.0"
