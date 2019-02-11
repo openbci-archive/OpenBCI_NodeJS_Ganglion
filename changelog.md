@@ -1,3 +1,13 @@
+ # 2.0.0
+
+ ### Breaking Changes
+
+ Name of package is now @openbci/ganglion
+
+ ### Enhancements
+
+ Include node 10 in testing
+
 # v1.2.0
 
 ### Bug Fixes

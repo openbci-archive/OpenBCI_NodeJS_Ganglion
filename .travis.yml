@@ -4,6 +4,7 @@ node_js:
   - "7"
   - "8"
   - "9"
+  - "10"
 before_install:
 # before_install code came from here: https://github.com/node-inspector/node-inspector/issues/776
   - sudo apt-get install python-software-properties

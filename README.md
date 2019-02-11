@@ -106,7 +106,7 @@ See [@don](https://github.com/don)'s set up guide on [Bluetooth LE with Node.js 
 Install from npm:
 
 ```
-npm install openbci-ganglion
+npm install @openbci/ganglion
 ```
 
 ## <a name="about"></a> About:
