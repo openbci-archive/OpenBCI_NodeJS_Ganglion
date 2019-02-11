@@ -1,5 +1,5 @@
 const Ganglion = require("../../openBCIGanglion");
-const k = require("openbci-utilities/dist/constants");
+const k = require("@openbci/utilities/dist/constants");
 const verbose = true;
 const DO_PACKET_CALCULATIONS = true;
 let ganglion = new Ganglion({
