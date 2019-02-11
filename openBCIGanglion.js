@@ -5,7 +5,7 @@ let noble;
 let SerialPort;
 const util = require("util");
 // Local imports
-const { utilities, constants, debug } = require("openbci-utilities");
+const { utilities, constants, debug } = require("@openbci/utilities");
 const k = constants;
 const clone = require("clone");
 const bufferEqual = require("buffer-equal");

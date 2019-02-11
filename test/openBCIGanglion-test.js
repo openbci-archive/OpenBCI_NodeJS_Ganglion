@@ -5,11 +5,11 @@ const chai = require('chai');
 const expect = chai.expect;
 const should = chai.should(); // eslint-disable-line no-unused-vars
 const Ganglion = require('../openBCIGanglion');
-const k = require('openbci-utilities/dist/constants');
+const k = require('@openbci/utilities/dist/constants');
 const chaiAsPromised = require('chai-as-promised');
 const sinonChai = require('sinon-chai');
 // const bufferEqual = require('buffer-equal');
-// const obciUtils = require('openbci-utilities/dist/utilities');
+// const obciUtils = require('@openbci/utilities/dist/utilities');
 const clone = require('clone');
 
 chai.use(chaiAsPromised);

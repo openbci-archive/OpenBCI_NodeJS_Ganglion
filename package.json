@@ -19,12 +19,12 @@
   "author": "AJ Keller <aj@pushtheworld.us> (www.openbci.com)",
   "license": "MIT",
   "dependencies": {
+    "@openbci/utilities": "^1.0.0",
     "buffer": "^5.0.8",
     "buffer-equal": "^1.0.0",
     "clone": "^2.0.0",
     "lodash": "^4.16.6",
     "noble-mac": "https://github.com/Timeular/noble-mac.git",
-    "openbci-utilities": "^0.3.6",
     "serialport": "^7.0.2"
   },
   "directories": {
