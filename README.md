@@ -2,7 +2,7 @@
 [![Build Status](https://travis-ci.org/OpenBCI/OpenBCI_NodeJS_Ganglion.svg?branch=master)](https://travis-ci.org/OpenBCI/OpenBCI_NodeJS_Ganglion)
 [![codecov](https://codecov.io/gh/OpenBCI/OpenBCI_NodeJS_Ganglion/branch/master/graph/badge.svg)](https://codecov.io/gh/OpenBCI/OpenBCI_NodeJS_Ganglion)
 [![Dependency Status](https://david-dm.org/OpenBCI/OpenBCI_NodeJS_Ganglion.svg)](https://david-dm.org/OpenBCI/OpenBCI_NodeJS_Ganglion)
-[![npm](https://img.shields.io/npm/dm/openbci-ganglion.svg?maxAge=2592000)](http://npmjs.com/package/openbci-ganglion)
+[![npm](https://img.shields.io/npm/dm/@openbci/ganglion.svg?maxAge=2592000)](http://npmjs.com/package/@openbci/ganglion)
 
 # OpenBCI Node.js Ganglion SDK
 
@@ -35,7 +35,7 @@ The purpose of this module is to **get connected** and **start streaming** as fa
 Get connected and start streaming right now
 
 ```js
-const Ganglion = require("openbci-ganglion");
+const Ganglion = require("@openbci/ganglion");
 const ganglion = new Ganglion();
 ganglion.once("ganglionFound", peripheral => {
   // Stop searching for BLE devices once a ganglion is found.
@@ -122,14 +122,14 @@ Check out the [**_automatic_** tests](https://codecov.io/gh/OpenBCI/OpenBCI_Node
 Initializing the board:
 
 ```js
-const Ganglion = require("openbci-ganglion");
+const Ganglion = require("@openbci/ganglion");
 const ganglion = new Ganglion();
 ```
 
 For initializing with options, such as verbose print outs:
 
 ```js
-const Ganglion = require("openbci-ganglion");
+const Ganglion = require("@openbci/ganglion");
 const ourBoard = new Ganglion({
   verbose: true
 });
@@ -138,7 +138,7 @@ const ourBoard = new Ganglion({
 For initializing with callback, such as to catch errors on `noble` startup:
 
 ```js
-const Ganglion = require("openbci-ganglion");
+const Ganglion = require("@openbci/ganglion");
 const ourBoard = new Ganglion(error => {
   if (error) {
     console.log("error", error);
@@ -151,7 +151,7 @@ const ourBoard = new Ganglion(error => {
 For initializing with options and callback, such as verbose and to catch errors on `noble` startup:
 
 ```js
-const Ganglion = require("openbci-ganglion");
+const Ganglion = require("@openbci/ganglion");
 const ourBoard = new Ganglion(
   {
     verbose: true
@@ -172,7 +172,7 @@ You MUST wait for the 'ready' event to be emitted before streaming/talking with 
 so installing the 'sample' listener and writing before the ready event might result in... nothing at all.
 
 ```js
-const Ganglion = require("openbci-ganglion");
+const Ganglion = require("@openbci/ganglion");
 const ourBoard = new Ganglion();
 ourBoard
   .connect(portName)
@@ -203,7 +203,7 @@ The power of this module is in using the sample emitter, to be provided with sam
 4. Install the ['sample'](#event-sample) event emitter
 
 ```js
-const Ganglion = require("openbci-ganglion");
+const Ganglion = require("@openbci/ganglion");
 const ourBoard = new Ganglion();
 ourBoard
   .connect(localName)
@@ -223,7 +223,7 @@ ourBoard
 Close the connection with [`.streamStop()`](#method-stream-stop) and disconnect with [`.disconnect()`](#method-disconnect)
 
 ```js
-const Ganglion = require("openbci-ganglion");
+const Ganglion = require("@openbci/ganglion");
 const ourBoard = new Ganglion();
 ourBoard.streamStop().then(ourBoard.disconnect());
 ```
