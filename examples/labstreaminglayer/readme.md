@@ -48,7 +48,7 @@ If you would like to use lab streaming layer in a custom OpenBCI NodeJS applicat
 
 index.js
 ```js
-const Ganglion = require('openbci-ganglion').Ganglion;
+const Ganglion = require('@openbci/ganglion').Ganglion;
 var portPub = 'tcp://127.0.0.1:3004';
 var zmq = require('zmq-prebuilt');
 var socket = zmq.socket('pair');
