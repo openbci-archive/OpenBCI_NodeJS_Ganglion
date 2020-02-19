@@ -35,7 +35,7 @@
     "buffer-equal": "^1.0.0",
     "chai": "^3.4.1",
     "chai-as-promised": "^5.2.0",
-    "codecov": "^1.0.1",
+    "codecov": "^3.6.5",
     "istanbul": "^0.4.4",
     "jsdoc-to-markdown": "^4.0.1",
     "mocha": "^3.0.2",
